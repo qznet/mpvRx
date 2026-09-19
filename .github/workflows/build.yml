@@ -174,13 +174,12 @@ jobs:
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "dual" || "$SELECTED_FLAVOR" == "fongmi" ]]; then
             flavor="fongmi"
             flavor_dir="app/build/outputs/apk/fongmi/release"
-            if ! compgen -G "$flavor_dir/app-${flavor}-universal-release*.apk" >/dev/null; then
-              echo "No universal release APK found for $flavor"
+            if ! compgen -G "$flavor_dir/app-${flavor}-armeabi-v7a-release*.apk" >/dev/null; then
+              echo "No armeabi-v7a release APK found for $flavor"
               exit 1
             fi
-            if find "$flavor_dir" -maxdepth 1 -type f -name "app-${flavor}-*-release*.apk" ! -name "app-${flavor}-universal-release*.apk" | grep -q .; then
-              echo "$flavor produced an unexpected ABI-specific APK"
-              find "$flavor_dir" -maxdepth 1 -type f -name '*.apk' -print
+            if compgen -G "$flavor_dir/app-${flavor}-universal-release*.apk" >/dev/null; then
+              echo "$flavor unexpectedly produced a universal APK (expected pure v7a thin package)"
               exit 1
             fi
           fi
@@ -249,12 +248,12 @@ jobs:
           retention-days: 14
           compression-level: 0
 
-      - name: Upload Fongmi universal APK
+      - name: Upload Fongmi arm ABI APK
         if: ${{ env.SELECTED_FLAVOR == 'all' || env.SELECTED_FLAVOR == 'dual' || env.SELECTED_FLAVOR == 'fongmi' }}
         uses: actions/upload-artifact@v7
         with:
           name: app-fongmi-release-${{ env.SHORT_SHA }}
-          path: app/build/outputs/apk/fongmi/release/app-fongmi-universal-release*.apk
+          path: app/build/outputs/apk/fongmi/release/app-fongmi-armeabi-v7a-release*.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
