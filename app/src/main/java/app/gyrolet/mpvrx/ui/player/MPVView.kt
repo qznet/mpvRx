@@ -224,9 +224,37 @@ class MPVView(
       MPVLib.setPropertyString("vo", "null")
       MPVLib.setPropertyString("vo", "mediacodec_embed")
     }.onFailure { Log.w(TAG, "Failed to reopen embedded video output", it) }
-    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() == null) {
-      runCatching { MPVLib.setPropertyString("vid", "auto") }
+    reselectVideoTrack()
+  }
+
+  /**
+   * Re-selects the video track mpv dropped when the embed VO failed to open.
+   *
+   * mpv only (re)builds the video chain while a video track is active, so after it deselected the
+   * track every further `vo` change is silently inert — the VO is never even attempted again.
+   * Re-selecting the track is what makes the new `vo` take effect.
+   *
+   * The track must be picked by its concrete id: `vid=auto` is a no-op whenever it already holds
+   * that value, which is exactly the case here, so it cannot bring the video back. `vid=no` is set
+   * first to guarantee the following assignment is observed as a real change.
+   */
+  private fun reselectVideoTrack() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    runCatching { MPVLib.setPropertyString("vid", "no") }
+    val trackCount = runCatching { MPVLib.getPropertyInt("track-list/count") }.getOrNull() ?: 0
+    for (index in 0 until trackCount) {
+      val type = runCatching { MPVLib.getPropertyString("track-list/$index/type") }.getOrNull()
+      if (type == "video") {
+        val id = runCatching { MPVLib.getPropertyInt("track-list/$index/id") }.getOrNull()
+        if (id != null) {
+          runCatching { MPVLib.setPropertyString("vid", id.toString()) }
+            .onSuccess { Log.w(TAG, "re-selected video track $id for mediacodec_embed") }
+            .onFailure { Log.w(TAG, "Failed to re-select video track $id", it) }
+          return
+        }
+      }
     }
+    runCatching { MPVLib.setPropertyString("vid", "auto") }
   }
 
   /**
