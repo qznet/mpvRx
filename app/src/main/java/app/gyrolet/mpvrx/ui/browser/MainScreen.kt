@@ -71,6 +71,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
@@ -103,7 +105,6 @@ import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
 import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
-import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import app.gyrolet.mpvrx.ui.player.NavigationAnimStyle
 import app.gyrolet.mpvrx.ui.utils.navigationDurationMillis
 import kotlinx.coroutines.Job
@@ -328,6 +329,10 @@ object MainScreen : Screen {
           ),
       )
 
+    // Initial TV focus goes to the content list (first folder card) instead of the floating pill
+    // bar. The pill has no upward focus target, so starting there trapped the remote in the tabs.
+    val tvContentFocusRequester = rememberTvInitialFocusRequester()
+
     // Scaffold with bottom navigation bar
     Scaffold(
       modifier = Modifier.fillMaxSize(),
@@ -338,6 +343,7 @@ object MainScreen : Screen {
           CompositionLocalProvider(
             LocalNavigationBarHeight provides contentBottomPadding,
             LocalMainNavigationBar provides mainNavBar,
+            LocalTvContentFocusRequester provides tvContentFocusRequester,
           ) {
             FolderListScreen.Content()
           }
@@ -345,6 +351,7 @@ object MainScreen : Screen {
           CompositionLocalProvider(
             LocalNavigationBarHeight provides contentBottomPadding,
             LocalMainNavigationBar provides mainNavBar,
+            LocalTvContentFocusRequester provides tvContentFocusRequester,
           ) {
             NavigationPager(
               state = pagerState,
@@ -619,7 +626,8 @@ private fun ExpressivePillNavigationBar(
   pagerState: PagerState? = null,
 ) {
   if (visibleTabs.isEmpty()) return
-  val initialFocusRequester = rememberTvInitialFocusRequester(visibleTabs.isNotEmpty())
+  // The pill never takes the initial TV focus: it hands DPAD UP back to the content list instead.
+  val contentFocusRequester = LocalTvContentFocusRequester.current
 
   val position =
     if (pagerState != null) {
@@ -720,7 +728,14 @@ private fun ExpressivePillNavigationBar(
                 Modifier
                   .width(tabWidths[index])
                   .height(44.dp)
-                  .then(if (tab == selectedTab) Modifier.tvInitialFocus(initialFocusRequester) else Modifier)
+                  .then(
+                    // TV: UP from the pill returns to the content list instead of dead-ending.
+                    if (contentFocusRequester != null) {
+                      Modifier.focusProperties { up = contentFocusRequester }
+                    } else {
+                      Modifier
+                    },
+                  )
                   .tvFocusHighlight(CircleShape, focusedScale = 1.06f)
                   .clip(CircleShape)
                   .selectable(
@@ -796,6 +811,17 @@ private fun MainTabIcon(
 }
 
 val LocalNavigationBarHeight = compositionLocalOf { 0.dp }
+
+/**
+ * Focus target for the TV content pane (folder/video lists).
+ *
+ * On TV the floating pill navigation bar is a bottom overlay without any focusable sibling
+ * above it inside its own focus scope, so DPAD UP from a tab did nothing and the remote stayed
+ * trapped in the pill. The pill now hands focus back to this requester with `focusProperties`
+ * and the home grids attach it to their first card, which also makes the content list — not the
+ * pill — own the initial TV focus.
+ */
+val LocalTvContentFocusRequester = compositionLocalOf<FocusRequester?> { null }
 
 // CompositionLocal for main navigation bar
 val LocalMainNavigationBar =

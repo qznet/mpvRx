@@ -77,13 +77,21 @@ fun rememberTvInitialFocusRequester(
   val isTelevision = DeviceFormFactor.isTelevision(LocalContext.current)
   val requester = remember(requestKey) { FocusRequester() }
   LaunchedEffect(isTelevision, enabled, requestKey) {
-    if (isTelevision && enabled) {
+    if (!isTelevision || !enabled) return@LaunchedEffect
+    // A FocusRequester throws until its target node is attached and laid out. Player controls,
+    // sheets and dialogs animate in, so a single attempt right after the state change often fires
+    // before the target exists and the request is silently lost — which left nothing focused on TV,
+    // making the OK key look dead. Retry across the entrance animation instead.
+    repeat(TV_INITIAL_FOCUS_ATTEMPTS) {
       withFrameNanos { }
-      runCatching { requester.requestFocus() }
+      if (runCatching { requester.requestFocus() }.isSuccess) return@LaunchedEffect
     }
   }
   return requester
 }
+
+/** Number of frames [rememberTvInitialFocusRequester] retries before giving up (~200 ms at 60 Hz). */
+private const val TV_INITIAL_FOCUS_ATTEMPTS = 12
 
 fun Modifier.tvInitialFocus(requester: FocusRequester): Modifier =
   composed {

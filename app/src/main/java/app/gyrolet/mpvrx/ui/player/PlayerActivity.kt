@@ -6320,6 +6320,25 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
       }
     val hasModifiers = modifierEvent != null
 
+    // On TV (always fullscreen/immersive) UP/DOWN step the playback speed while the controls are
+    // visible. This MUST run before the remote policy below: that policy delegates DPAD_UP/DOWN to
+    // the focused controls and returns early, which previously made the speed step unreachable, so
+    // the remote appeared dead on UP/DOWN.
+    if (isTelevision && !hasModifiers && isNoSheetOpen && viewModel.controlsShown.value) {
+      when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_UP -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(tvSpeedStep)
+          return true
+        }
+        KeyEvent.KEYCODE_DPAD_DOWN -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(-tvSpeedStep)
+          return true
+        }
+      }
+    }
+
     if (isTelevision && !hasModifiers) {
       val overlayVisible = viewModel.sheetShown.value != Sheets.None || viewModel.panelShown.value != Panels.None
       when (
@@ -6351,7 +6370,24 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
           return true
         }
         TvPlayerRemoteAction.DELEGATE -> {
-          if (TvPlayerRemotePolicy.isNavigationKey(keyCode)) return super.onKeyDown(keyCode, event)
+          if (TvPlayerRemotePolicy.isNavigationKey(keyCode)) {
+            val handledByFocusedControl = super.onKeyDown(keyCode, event)
+            // The focused Compose control (play/pause, …) owns OK while the controls are up. When
+            // nothing is focused yet — which is what happens while the controls are still animating
+            // in — the key would otherwise be a no-op, so fall back to toggling playback.
+            val isConfirmKey =
+              keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                keyCode == KeyEvent.KEYCODE_ENTER ||
+                keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+                keyCode == KeyEvent.KEYCODE_BUTTON_A
+            if (!handledByFocusedControl && isConfirmKey && isNoSheetOpen) {
+              consumedTvRemoteKeys += keyCode
+              if ((event?.repeatCount ?: 0) == 0) viewModel.pauseUnpause()
+              viewModel.showControls()
+              return true
+            }
+            return handledByFocusedControl
+          }
         }
       }
     }
@@ -6372,21 +6408,8 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
       }
     }
 
-    // On TV (always fullscreen/immersive) playback, UP/DOWN adjust playback speed once controls are visible.
-    if (isTelevision && !hasModifiers && isNoSheetOpen && viewModel.controlsShown.value) {
-      when (keyCode) {
-        KeyEvent.KEYCODE_DPAD_UP -> {
-          consumedTvRemoteKeys += keyCode
-          adjustPlaybackSpeedByStep(tvSpeedStep)
-          return true
-        }
-        KeyEvent.KEYCODE_DPAD_DOWN -> {
-          consumedTvRemoteKeys += keyCode
-          adjustPlaybackSpeedByStep(-tvSpeedStep)
-          return true
-        }
-      }
-    }
+    // On TV (always fullscreen/immersive) playback, UP/DOWN speed stepping is handled above the
+    // remote policy — see adjustPlaybackSpeedByStep / tvSpeedStep.
 
     when (keyCode) {
       KeyEvent.KEYCODE_DPAD_UP -> {

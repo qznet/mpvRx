@@ -102,6 +102,7 @@ import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
+import app.gyrolet.mpvrx.ui.browser.LocalTvContentFocusRequester
 import app.gyrolet.mpvrx.ui.browser.cards.FolderCard
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCard
 import app.gyrolet.mpvrx.ui.browser.cards.VideoCardUiConfig
@@ -1329,6 +1330,10 @@ private fun GridContent(
     val spansInfo = calculateResponsiveGridSpans(maxWidth = maxWidth)
     val computedColumns = spansInfo.spans / spansInfo.folderSpan
 
+    // TV: the pill navigation hands DPAD UP back here, and this is where the initial TV focus
+    // lands, so attach the requester to the first card of the list.
+    val tvContentFocusRequester = LocalTvContentFocusRequester.current
+
     LazyVerticalGrid(
       columns = GridCells.Fixed(computedColumns),
       state = gridState,
@@ -1352,6 +1357,12 @@ private fun GridContent(
 
         FolderCard(
           folder = folder,
+          modifier =
+            if (index == 0 && tvContentFocusRequester != null) {
+              Modifier.focusRequester(tvContentFocusRequester)
+            } else {
+              Modifier
+            },
           isSelected = selectionManager.isSelected(folder),
           isRecentlyPlayed = isRecentlyPlayed,
           onClick = { onFolderClick(folder) },
@@ -1424,6 +1435,8 @@ private fun ListContent(
     }
   val recentlyPlayedParent = remember(recentlyPlayedFilePath) { recentlyPlayedFilePath?.let(::File)?.parent }
 
+  val tvContentFocusRequester = LocalTvContentFocusRequester.current
+
   Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
       state = listState,
@@ -1444,6 +1457,12 @@ private fun ListContent(
 
         FolderCard(
           folder = folder,
+          modifier =
+            if (tvContentFocusRequester != null && folder.bucketId == folders.firstOrNull()?.bucketId) {
+              Modifier.focusRequester(tvContentFocusRequester)
+            } else {
+              Modifier
+            },
           isSelected = selectionManager.isSelected(folder),
           isRecentlyPlayed = isRecentlyPlayed,
           onClick = { onFolderClick(folder) },
