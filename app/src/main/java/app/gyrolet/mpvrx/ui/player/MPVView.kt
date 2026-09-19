@@ -203,15 +203,48 @@ class MPVView(
   var secondarySid: Int by TrackDelegate("secondary-sid")
   var aid: Int by TrackDelegate("aid")
 
+  /**
+   * Render via MediaCodec's embedded (zero-copy) surface when either the dedicated
+   * preference is enabled or the user set `vo=mediacodec_embed` (or `video-output=...`) in mpv.conf.
+   * This path must NOT emit gpu-api / gpu-context — they are incompatible with
+   * vo=mediacodec_embed and previously caused a black-screen-with-audio regression.
+   */
+  private fun isMediaCodecEmbedActive(): Boolean {
+    if (decoderPreferences.useMediaCodecEmbed.get()) return true
+    return advancedPreferences.mpvConf
+      .get()
+      .lineSequence()
+      .any { raw ->
+        val line = raw.substringBefore('#').trim()
+        line.equals("vo=mediacodec_embed", ignoreCase = true) ||
+          line.equals("video-output=mediacodec_embed", ignoreCase = true)
+      }
+  }
+
   override fun initOptions() {
     val profile = decoderPreferences.profile.get()
     PlaybackSession.setOptionString("profile", profile)
-    val backend = selectRenderBackend()
+
+    val useMediaCodecEmbed = isMediaCodecEmbedActive()
+    val backend =
+      if (useMediaCodecEmbed) {
+        RenderBackendSelection(
+          vo = "mediacodec_embed",
+          gpuApi = "",
+          gpuContext = "",
+          reason = "MediaCodec Embed (zero-copy) video output requested",
+        )
+      } else {
+        selectRenderBackend()
+      }
     val useVulkan = backend.gpuApi == "vulkan"
     val hwdecMode = preferredHwdecMode(useVulkan)
     PlaybackSession.setVideoOutput(backend.vo)
-    PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
-    PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    if (!useMediaCodecEmbed) {
+      // gpu-api / gpu-context are incompatible with vo=mediacodec_embed; omit them there.
+      PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
+      PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    }
 
     val hdrScreenOutputEnabled = decoderPreferences.hdrScreenOutput.get()
     val isLinearAvailable = useVulkan && backend.vo == "gpu-next"
@@ -227,7 +260,7 @@ class MPVView(
         }
       }
     val hdrPipelineReady = hdrScreenMode != HdrScreenMode.LINEAR || isLinearAvailable
-    if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
+    if (!useMediaCodecEmbed && !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
       applyHdrScreenOutputOptions(
         mode = hdrScreenMode,
         pipelineReady = hdrPipelineReady,
@@ -238,10 +271,16 @@ class MPVView(
     // Fongmi can map direct MediaCodec frames into Vulkan; other Vulkan builds start with copy mode.
     if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HARDWARE_DECODER)) {
       val hardwareDecoderCodecs = VideoCodecSupportInspector.hardwareDecoderCodecIds()
-      PlaybackSession.setOptionString(
-        "hwdec",
-        if (hardwareDecoderCodecs.isEmpty()) "no" else hwdecMode,
-      )
+      val effectiveHwdec =
+        if (useMediaCodecEmbed) {
+          // Embedded MediaCodec surface requires direct (non-copy) HW decoding.
+          if (decoderPreferences.tryHWDecoding.get() && hardwareDecoderCodecs.isNotEmpty()) "mediacodec" else "no"
+        } else if (hardwareDecoderCodecs.isEmpty()) {
+          "no"
+        } else {
+          hwdecMode
+        }
+      PlaybackSession.setOptionString("hwdec", effectiveHwdec)
       if (hardwareDecoderCodecs.isNotEmpty()) {
         PlaybackSession.setOptionString("hwdec-codecs", hardwareDecoderCodecs.joinToString(","))
       }
@@ -253,7 +292,7 @@ class MPVView(
     PlaybackSession.setOptionString("vd-lavc-dr", "auto")
     PlaybackSession.setOptionString("vd-lavc-queue", "no")
 
-    if (decoderPreferences.useYUV420P.get()) {
+    if (!useMediaCodecEmbed && decoderPreferences.useYUV420P.get()) {
       PlaybackSession.setOptionString("vf", "format=yuv420p")
     }
     val logLevel = if (advancedPreferences.verboseLogging.get()) "v" else "warn"
@@ -318,11 +357,11 @@ class MPVView(
     PlaybackSession.setOptionString("video-sync", "audio")
 
     // Anime4K shader initialization (MUST be in initOptions, not after file load!)
-    if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.ANIME4K)) {
+    if (!useMediaCodecEmbed && !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.ANIME4K)) {
       applyAnime4KShaders(backend.vo, backend.gpuApi)
     }
     // HDR Toys shaders (loaded after Anime4K so they append in the correct order)
-    if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
+    if (!useMediaCodecEmbed && !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
       applyHdrToysMode(hdrScreenMode, hdrPipelineReady)
     }
 
@@ -341,7 +380,7 @@ class MPVView(
     when (decoderPreferences.debanding.get()) {
       Debanding.None -> {}
       Debanding.CPU -> PlaybackSession.command("vf", "add", "@deband:gradfun=radius=12")
-      Debanding.GPU -> PlaybackSession.setOptionString("deband", "yes")
+      Debanding.GPU -> if (!isMediaCodecEmbedActive()) PlaybackSession.setOptionString("deband", "yes")
     }
 
     advancedPreferences.enabledStatisticsPage.get().let {

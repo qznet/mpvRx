@@ -67,7 +67,12 @@ jobs:
             ./gradlew assembleStandardRelease --stacktrace --no-daemon --max-workers=2
           fi
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "dual" || "$SELECTED_FLAVOR" == "fongmi" ]]; then
-            ./gradlew assembleFongmiRelease --stacktrace --no-daemon --max-workers=2
+            if [[ "$SELECTED_FLAVOR" == "fongmi" ]]; then
+              # Dedicated fongmi build: pure armeabi-v7a thin APK (no universal, no other ABIs).
+              ./gradlew assembleFongmiRelease -PtargetAbi=armeabi-v7a --stacktrace --no-daemon --max-workers=2
+            else
+              ./gradlew assembleFongmiRelease --stacktrace --no-daemon --max-workers=2
+            fi
           fi
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "no_vulkan" ]]; then
             ./gradlew assembleNoVulkanRelease --stacktrace --no-daemon --max-workers=2
@@ -128,10 +133,20 @@ jobs:
           fi
 
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "dual" || "$SELECTED_FLAVOR" == "fongmi" ]]; then
-            flavor="fongmi"
             flavor_dir="app/build/outputs/apk/fongmi/release"
             test -d "$flavor_dir"
-            sign_apk               "$flavor_dir/app-${flavor}-universal-release-unsigned.apk"               "$flavor_dir/app-${flavor}-universal-release.apk"               "$flavor universal release"
+            shopt -s nullglob
+            unsigned_apks=("$flavor_dir"/app-fongmi-*-release-unsigned.apk)
+            shopt -u nullglob
+            if [[ ${#unsigned_apks[@]} -eq 0 ]]; then
+              echo "No fongmi release APK found"
+              find app/build/outputs/apk -type f -name '*.apk' -print || true
+              exit 1
+            fi
+            for unsigned in "${unsigned_apks[@]}"; do
+              signed="${unsigned/-unsigned/}"
+              sign_apk "$unsigned" "$signed" "fongmi release"
+            done
           fi
 
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "no_vulkan" ]]; then

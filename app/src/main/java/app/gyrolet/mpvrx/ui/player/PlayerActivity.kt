@@ -198,6 +198,9 @@ class PlayerActivity :
   private val isTelevision by lazy(LazyThreadSafetyMode.NONE) { DeviceFormFactor.isTelevision(this) }
   private val consumedTvRemoteKeys = mutableSetOf<Int>()
 
+  /** Playback-speed step applied per DPAD press during fullscreen TV playback. */
+  private val tvSpeedStep = 0.1
+
   /**
    * Observer for MPV events.
    */
@@ -6291,6 +6294,15 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
    * @param event The key event
    * @return true if event was handled, false otherwise
    */
+  /** Adjusts playback speed by [delta] (e.g. +0.1 / -0.1) and surfaces a brief confirmation. */
+  private fun adjustPlaybackSpeedByStep(delta: Double) {
+    val current = PlaybackSession.getPropertyDouble("speed") ?: 1.0
+    val next = (current + delta).coerceIn(0.1, 4.0)
+    PlaybackSession.setPropertyDouble("speed", next)
+    viewModel.showControls()
+    viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+  }
+
   @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
   override fun onKeyDown(
     keyCode: Int,
@@ -6355,6 +6367,22 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
         }
         KeyEvent.KEYCODE_W -> {
           viewModel.toggleMediaScopes(app.gyrolet.mpvrx.ui.player.scopes.MediaScopeTab.Video)
+          return true
+        }
+      }
+    }
+
+    // On TV (always fullscreen/immersive) playback, UP/DOWN adjust playback speed once controls are visible.
+    if (isTelevision && !hasModifiers && isNoSheetOpen && viewModel.controlsShown.value) {
+      when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_UP -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(tvSpeedStep)
+          return true
+        }
+        KeyEvent.KEYCODE_DPAD_DOWN -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(-tvSpeedStep)
           return true
         }
       }

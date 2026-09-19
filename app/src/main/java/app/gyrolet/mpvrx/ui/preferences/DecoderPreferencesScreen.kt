@@ -170,6 +170,22 @@ object DecoderPreferencesScreen : Screen {
 
               PreferenceDivider()
 
+              val useMediaCodecEmbed by preferences.useMediaCodecEmbed.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_mediacodec_embed_title),
+                value = useMediaCodecEmbed,
+                onValueChange = { preferences.useMediaCodecEmbed.set(it) },
+                title = { Text(stringResource(R.string.pref_decoder_mediacodec_embed_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_decoder_mediacodec_embed_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
               val gpuNext by preferences.gpuNext.collectAsState()
               val useVulkan by preferences.useVulkan.collectAsState() // Added to check Vulkan state
               SwitchPreference(

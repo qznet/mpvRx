@@ -30,6 +30,9 @@ class DecoderPreferences(
   val boostSdrToHdr = preferenceStore.getBoolean("boost_sdr_to_hdr", true)
   val useYUV420P = preferenceStore.getBoolean("use_yuv420p", false)
 
+  /** Render through MediaCodec's embedded (zero-copy) surface (vo=mediacodec_embed + hwdec=mediacodec). */
+  val useMediaCodecEmbed = preferenceStore.getBoolean("use_mediacodec_embed", false)
+
   val debanding = preferenceStore.getEnum("debanding", Debanding.None)
   val debandIterations = preferenceStore.getInt("deband_iterations", 1)
   val debandThreshold = preferenceStore.getInt("deband_threshold", 48)
