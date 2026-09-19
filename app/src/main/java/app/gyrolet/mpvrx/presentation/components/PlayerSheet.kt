@@ -337,7 +337,7 @@ fun PlayerSheetHeader(
   actions: @Composable RowScope.() -> Unit = {},
 ) {
   Box(
-    modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 12.dp, bottom = 4.dp),
+    modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal=12.dp).padding(bottom=4.dp),
   ) {
     Text(
       text = title,
