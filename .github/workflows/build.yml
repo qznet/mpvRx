@@ -78,21 +78,31 @@ jobs:
         run: |
           set -euo pipefail
           apksigner="$ANDROID_HOME/build-tools/34.0.0/apksigner"
-
           test -x "$apksigner"
 
-          if [[ -z "${{ secrets.SIGNING_KEYSTORE }}" ]]; then
-            echo "SIGNING_KEYSTORE is unavailable (expected for untrusted fork PRs); keeping CI APKs unsigned."
-            exit 0
+          KEYSTORE_B64="${{ secrets.SIGNING_KEYSTORE }}"
+          ALIAS="${{ secrets.SIGNING_KEY_ALIAS }}"
+          STOREPASS="${{ secrets.SIGNING_STORE_PASSWORD }}"
+          KEYPASS="${{ secrets.KEY_PASSWORD }}"
+
+          if [[ -z "$KEYSTORE_B64" ]]; then
+            echo "SIGNING_KEYSTORE secret unavailable; generating an ephemeral debug keystore so the APK is signed and installable."
+            KEYSTORE_PATH="$PWD/release.keystore"
+            ALIAS="androiddebugkey"
+            STOREPASS="android"
+            KEYPASS="android"
+            keytool -genkeypair -v               -keystore "$KEYSTORE_PATH"               -alias "$ALIAS"               -keyalg RSA -keysize 2048 -validity 10000               -dname "CN=mpvRx Debug,O=mpvRx"               -storepass "$STOREPASS" -keypass "$KEYPASS"
+          else
+            echo "Using provided SIGNING_KEYSTORE secret."
+            KEYSTORE_PATH="$PWD/release.keystore"
+            printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
+            if [[ -z "$ALIAS" || -z "$STOREPASS" || -z "$KEYPASS" ]]; then
+              echo "SIGNING_KEYSTORE exists but one or more required signing secrets are missing."
+              exit 1
+            fi
           fi
 
-          if [[ -z "${{ secrets.SIGNING_KEY_ALIAS }}" || -z "${{ secrets.SIGNING_STORE_PASSWORD }}" || -z "${{ secrets.KEY_PASSWORD }}" ]]; then
-            echo "SIGNING_KEYSTORE exists but one or more required signing secrets are missing."
-            exit 1
-          fi
-
-          printf '%s' "${{ secrets.SIGNING_KEYSTORE }}" | base64 --decode > release.keystore
-          trap 'rm -f release.keystore' EXIT
+          trap 'rm -f "$KEYSTORE_PATH"' EXIT
 
           sign_apk() {
             local unsigned="$1"
@@ -103,14 +113,7 @@ jobs:
               find app/build/outputs/apk -type f -name '*.apk' -print || true
               exit 1
             fi
-
-            "$apksigner" sign \
-              --ks release.keystore \
-              --ks-key-alias "${{ secrets.SIGNING_KEY_ALIAS }}" \
-              --ks-pass "pass:${{ secrets.SIGNING_STORE_PASSWORD }}" \
-              --key-pass "pass:${{ secrets.KEY_PASSWORD }}" \
-              --out "$signed" \
-              "$unsigned"
+            "$apksigner" sign               --ks "$KEYSTORE_PATH"               --ks-key-alias "$ALIAS"               --ks-pass "pass:$STOREPASS"               --key-pass "pass:$KEYPASS"               --out "$signed"               "$unsigned"
             "$apksigner" verify --verbose "$signed"
             rm -f "$unsigned"
           }
@@ -120,10 +123,7 @@ jobs:
             test -d "$release_dir"
             architectures=(universal arm64-v8a armeabi-v7a x86 x86_64)
             for abi in "${architectures[@]}"; do
-              sign_apk \
-                "$release_dir/app-standard-${abi}-release-unsigned.apk" \
-                "$release_dir/app-standard-${abi}-release.apk" \
-                "standard $abi release"
+              sign_apk                 "$release_dir/app-standard-${abi}-release-unsigned.apk"                 "$release_dir/app-standard-${abi}-release.apk"                 "standard $abi release"
             done
           fi
 
@@ -131,20 +131,14 @@ jobs:
             flavor="fongmi"
             flavor_dir="app/build/outputs/apk/fongmi/release"
             test -d "$flavor_dir"
-            sign_apk \
-              "$flavor_dir/app-${flavor}-universal-release-unsigned.apk" \
-              "$flavor_dir/app-${flavor}-universal-release.apk" \
-              "$flavor universal release"
+            sign_apk               "$flavor_dir/app-${flavor}-universal-release-unsigned.apk"               "$flavor_dir/app-${flavor}-universal-release.apk"               "$flavor universal release"
           fi
 
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "no_vulkan" ]]; then
             flavor="noVulkan"
             flavor_dir="app/build/outputs/apk/noVulkan/release"
             test -d "$flavor_dir"
-            sign_apk \
-              "$flavor_dir/app-${flavor}-universal-release-unsigned.apk" \
-              "$flavor_dir/app-${flavor}-universal-release.apk" \
-              "non-Vulkan universal release"
+            sign_apk               "$flavor_dir/app-${flavor}-universal-release-unsigned.apk"               "$flavor_dir/app-${flavor}-universal-release.apk"               "non-Vulkan universal release"
           fi
 
       - name: Verify expected flavor outputs
