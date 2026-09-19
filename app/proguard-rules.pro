@@ -20,6 +20,15 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 -dontobfuscate
+# R8 optimization (class merging) produced an invalid dex on strict TV ART verifiers
+# (VerifyError: "Superclass org.jsoup.helper.Validate ... is declared final"), causing
+# the white-screen-crash on launch. Disable optimization but keep shrinking so the APK
+# stays thin. Obfuscation is already disabled above.
+-dontoptimize
+# Keep jsoup and the affected AndroidX classes intact to avoid hierarchy corruption.
+-keep class org.jsoup.** { *; }
+-keep class androidx.compose.runtime.Latch { *; }
+-keep class androidx.core.view.WindowInsetsControllerCompat* { *; }
 -keep,allowoptimization class is.xyz.mpv.** { public protected *; }
 -keep,allowoptimization class net.mediaarea.mediainfo.lib.** { public protected *; }
 -keep class org.libtorrent4j.swig.libtorrent_jni { *; }
