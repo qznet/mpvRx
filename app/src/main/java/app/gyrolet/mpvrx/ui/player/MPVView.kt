@@ -10,11 +10,17 @@
 package app.gyrolet.mpvrx.ui.player
 
 import android.content.Context
+import android.graphics.PixelFormat
 import android.os.Environment
 import android.util.AttributeSet
 import android.util.Log
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.WindowInsetsCompat
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
@@ -105,6 +111,13 @@ class MPVView(
     if (result.isSuccess) {
       holder.removeCallback(this)
       holder.addCallback(this)
+      if (isMediaCodecEmbedActive()) {
+        syncOsdSurfaceAttachment()
+      } else {
+        // The renderer may have been switched away from the embedded output since the last
+        // session; drop any leftover embed letterbox so the new output gets the full viewport.
+        restoreFullSizeEmbedBounds()
+      }
       if (holder.surface.isValid && !isSurfaceReady) surfaceCreated(holder)
     }
     return result
@@ -115,6 +128,7 @@ class MPVView(
 
   fun releaseSurface() {
     holder.removeCallback(this)
+    unregisterEmbedRelayoutListener()
     if (isSurfaceReady || PlaybackSession.state.value.surfaceAttached) {
       isSurfaceReady = false
       PlaybackSession.unbindSurface(this)
@@ -125,6 +139,186 @@ class MPVView(
     if (!surfaceBindingEnabled || !holder.surface.isValid) return
     isSurfaceReady = false
     surfaceCreated(holder)
+  }
+
+  // ==================== MediaCodec embed (HW+) OSD window ====================
+
+  private var osdSurfaceView: SurfaceView? = null
+  private var osdSurfaceReady = false
+  private var osdSurfaceAttached = false
+
+  /**
+   * Wires the second SurfaceView that vo=mediacodec_embed renders its OSD/subtitles into.
+   *
+   * MediaCodec hands the decoded frame straight to the player surface, so mpv has no GL pass left
+   * to draw the OSD into and needs its own window (`android-osd-wid`). Without it mpv aborts the
+   * video output with "No Android OSD Surface is attached for direct MediaCodec output" and keeps
+   * playing audio over a black screen — the exact symptom of the embed toggle in settings.
+   *
+   * Only ever attaches while the embedded video output is active, so gpu/gpu-next playback is
+   * completely unaffected.
+   */
+  fun setOsdSurfaceView(surfaceView: SurfaceView) {
+    if (osdSurfaceView === surfaceView) return
+    osdSurfaceView = surfaceView
+    // Transparent + media overlay: an opaque OSD surface would cover the video (audio only), and
+    // without the overlay z-order it would sit behind it.
+    surfaceView.holder.setFormat(PixelFormat.TRANSPARENT)
+    surfaceView.setZOrderMediaOverlay(true)
+    surfaceView.holder.addCallback(
+      object : SurfaceHolder.Callback {
+        override fun surfaceCreated(holder: SurfaceHolder) {
+          osdSurfaceReady = true
+          syncOsdSurfaceAttachment()
+        }
+
+        override fun surfaceChanged(
+          holder: SurfaceHolder,
+          format: Int,
+          width: Int,
+          height: Int,
+        ) = Unit
+
+        override fun surfaceDestroyed(holder: SurfaceHolder) {
+          osdSurfaceReady = false
+          if (!osdSurfaceAttached) return
+          osdSurfaceAttached = false
+          runCatching { MPVLib.detachOsdSurface() }
+            .onFailure { Log.w(TAG, "Failed to detach OSD surface", it) }
+        }
+      },
+    )
+  }
+
+  /** Attaches/detaches the OSD window to match the currently active video output. */
+  fun syncOsdSurfaceAttachment() {
+    val view = osdSurfaceView ?: return
+    if (!isMediaCodecEmbedActive()) {
+      if (!osdSurfaceAttached) return
+      osdSurfaceAttached = false
+      runCatching { MPVLib.detachOsdSurface() }
+      return
+    }
+    if (osdSurfaceAttached || !osdSurfaceReady) return
+    val surface = view.holder.surface.takeIf { it.isValid } ?: return
+    runCatching { MPVLib.attachOsdSurface(surface) }
+      .onSuccess {
+        osdSurfaceAttached = true
+        // The VO may have been opened before the OSD window existed, in which case mpv gave up on
+        // the video track; reopen it so the picture actually comes back.
+        reopenEmbedVideoOutput()
+      }
+      .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
+  }
+
+  /**
+   * Re-opens the embedded video output so it picks up the OSD window.
+   *
+   * Setting `vo` to the value it already holds is a no-op, so it is switched through "null" first.
+   * When the open fails mpv deselects the video track entirely and never retries, so re-select it
+   * as well — otherwise the picture stays black until the next file is loaded.
+   */
+  private fun reopenEmbedVideoOutput() {
+    if (!isMediaCodecEmbedActive()) return
+    runCatching {
+      MPVLib.setPropertyString("vo", "null")
+      MPVLib.setPropertyString("vo", "mediacodec_embed")
+    }.onFailure { Log.w(TAG, "Failed to reopen embedded video output", it) }
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() == null) {
+      runCatching { MPVLib.setPropertyString("vid", "auto") }
+    }
+  }
+
+  private var lastEmbedAspect: Double? = null
+
+  /**
+   * Letterboxes vo=mediacodec_embed at the view level.
+   *
+   * MediaCodec writes the frame directly into this SurfaceView's ANativeWindow, so mpv cannot scale
+   * or letterbox it the way gpu/gpu-next do internally. Shrinking the view to a centered rectangle
+   * that matches the source DAR lets the black parent show through as letterbox/pillarbox.
+   * No-op for every other video output.
+   */
+  fun applyEmbedAspectRatio(aspect: Double?) {
+    if (!isMediaCodecEmbedActive()) return
+    if (aspect != null && aspect > 0.0) lastEmbedAspect = aspect
+    applyEmbedAspectRatioBounds()
+  }
+
+  private fun applyEmbedAspectRatioBounds() {
+    if (!isMediaCodecEmbedActive()) return
+    val dar = lastEmbedAspect ?: return
+    val container = parent as? ViewGroup ?: return
+    val containerWidth = container.width
+    val containerHeight = container.height
+    if (containerWidth <= 0 || containerHeight <= 0) return
+    val containerDar = containerWidth.toDouble() / containerHeight.toDouble()
+    val videoWidth: Int
+    val videoHeight: Int
+    if (dar > containerDar) {
+      videoWidth = containerWidth
+      videoHeight = (containerWidth / dar).toInt()
+    } else {
+      videoWidth = (containerHeight * dar).toInt()
+      videoHeight = containerHeight
+    }
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == videoWidth && params.height == videoHeight) return
+    Log.i(TAG, "MediaCodec embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    params.width = videoWidth
+    params.height = videoHeight
+    params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+    params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+    params.topToTop = ConstraintLayout.LayoutParams.PARENT_ID
+    params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+    params.horizontalBias = 0.5f
+    params.verticalBias = 0.5f
+    layoutParams = params
+  }
+
+  /** Drops the embed letterbox from a previous session so gpu/gpu-next gets the full viewport back. */
+  private fun restoreFullSizeEmbedBounds() {
+    lastEmbedAspect = null
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == ViewGroup.LayoutParams.MATCH_PARENT &&
+      params.height == ViewGroup.LayoutParams.MATCH_PARENT
+    ) {
+      return
+    }
+    params.width = ViewGroup.LayoutParams.MATCH_PARENT
+    params.height = ViewGroup.LayoutParams.MATCH_PARENT
+    layoutParams = params
+  }
+
+  /**
+   * The aspect callback that drives [applyEmbedAspectRatioBounds] can arrive while the parent is
+   * still mid-layout, and no further aspect event comes for the same file — so recompute against
+   * the settled container size as well. Cheap: it bails out unless the rectangle really changes.
+   */
+  private val embedRelayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+    if (!isMediaCodecEmbedActive() || lastEmbedAspect == null) return@OnGlobalLayoutListener
+    // User-picked Crop (panscan) / Stretch / custom aspect must not be fought.
+    val override = PlaybackSession.getPropertyDouble("video-aspect-override") ?: -1.0
+    val panscan = PlaybackSession.getPropertyDouble("panscan") ?: 0.0
+    if (override > 0.0 || panscan >= 1.0) return@OnGlobalLayoutListener
+    applyEmbedAspectRatioBounds()
+  }
+
+  private var embedRelayoutListenerRegistered = false
+
+  private fun registerEmbedRelayoutListener() {
+    if (embedRelayoutListenerRegistered || !isMediaCodecEmbedActive()) return
+    if (!viewTreeObserver.isAlive) return
+    embedRelayoutListenerRegistered = true
+    viewTreeObserver.addOnGlobalLayoutListener(embedRelayoutListener)
+  }
+
+  private fun unregisterEmbedRelayoutListener() {
+    if (!embedRelayoutListenerRegistered) return
+    embedRelayoutListenerRegistered = false
+    if (viewTreeObserver.isAlive) {
+      runCatching { viewTreeObserver.removeOnGlobalLayoutListener(embedRelayoutListener) }
+    }
   }
 
   private data class RenderBackendSelection(
@@ -453,6 +647,9 @@ class MPVView(
     if (!surfaceBindingEnabled) return
     isSurfaceReady =
       PlaybackSession.bindSurface(holder.surface, width, height, this, ownerIsActive = { surfaceBindingEnabled })
+    // vo=mediacodec_embed needs both windows attached when the video output opens.
+    syncOsdSurfaceAttachment()
+    registerEmbedRelayoutListener()
     applyFrameRate()
     post {
       if (isSurfaceReady && holder.surface.isValid) {
@@ -463,6 +660,7 @@ class MPVView(
 
   override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
     isSurfaceReady = false
+    unregisterEmbedRelayoutListener()
     PlaybackSession.unbindSurface(this)
   }
 

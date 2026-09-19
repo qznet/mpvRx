@@ -2600,6 +2600,11 @@ class PlayerActivity :
 
   private fun initializePlayerWithRendererFallback(): String? {
     player.forceOpenGlFallback = false
+    // vo=mediacodec_embed (HW+/zero-copy) renders through MediaCodec straight into the player
+    // surface and needs a *separate* OSD window; without it mpv refuses to open the video output
+    // ("No Android OSD Surface is attached for direct MediaCodec output") and playback ends up as
+    // audio over a black screen. Wire it up before the core starts; it is ignored by gpu/gpu-next.
+    player.setOsdSurfaceView(binding.osdSurface)
     val firstAttempt = player.initializeSession(filesDir.path, cacheDir.path)
     if (firstAttempt.isSuccess) return null
 
@@ -4148,6 +4153,9 @@ class PlayerActivity :
       "video-params/aspect" -> {
         // Safety check: don't access MPV during cleanup
         if (!mpvInitialized || player.isExiting || isFinishing) return
+        // vo=mediacodec_embed bypasses mpv's scaler entirely, so the frame cannot be letterboxed
+        // inside mpv — resize the video view to the source DAR instead (no-op for gpu/gpu-next).
+        if (!isVideoAmbientPresentationActive) player.applyEmbedAspectRatio(value)
         scheduleVideoParamRefresh(reloadShaders = false)
       }
       "container-fps" -> {

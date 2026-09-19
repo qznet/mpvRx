@@ -24,6 +24,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!--
+      OSD window for vo=mediacodec_embed. MediaCodec renders the video straight into the player
+      surface above, so mpv needs a *separate* window for subtitles/OSD; without it the VO refuses
+      to open ("No Android OSD Surface is attached for direct MediaCodec output") and playback
+      ends up with audio over a black screen. MPVView makes this surface transparent and stacks it
+      as a media overlay above the video; it stays untouched for gpu/gpu-next video outputs.
+    -->
+    <SurfaceView
+        android:id="@+id/osd_surface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <View
         android:id="@+id/external_display_overlay"
         android:layout_width="0dp"
