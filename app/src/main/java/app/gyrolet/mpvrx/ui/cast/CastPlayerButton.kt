@@ -9,6 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.cast
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.BorderStroke
@@ -29,7 +30,18 @@ import app.gyrolet.mpvrx.preferences.PlayerButton
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.theme.controlColor
 import com.google.android.gms.cast.framework.CastButtonFactory
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
 import androidx.compose.ui.graphics.Color as ComposeColor
+
+/** Returns true only when Google Play services is present and Cast can initialise. */
+private fun isGooglePlayServicesAvailable(context: Context): Boolean =
+  try {
+    GoogleApiAvailability.getInstance()
+      .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+  } catch (_: Throwable) {
+    false
+  }
 
 /** Uses the SDK button for Cast behavior while keeping the app's rounded symbol visible. */
 @Composable
@@ -67,7 +79,17 @@ fun CastPlayerButton(
           MediaRouteButton(context).apply {
             setBackgroundColor(Color.TRANSPARENT)
             contentDescription = castContentDescription
-            CastButtonFactory.setUpMediaRouteButton(context.applicationContext, this)
+            // Initialising the Cast button forces CastContext.getSharedInstance(),
+            // which throws on devices without Google Play services (most Android TV
+            // boxes / FongMi builds). Guard it so the player no longer white-screens
+            // or crashes on launch.
+            if (isGooglePlayServicesAvailable(context.applicationContext)) {
+              try {
+                CastButtonFactory.setUpMediaRouteButton(context.applicationContext, this)
+              } catch (_: Throwable) {
+                // Leave the decorative icon in place; the route button stays inert.
+              }
+            }
             setRemoteIndicatorDrawable(ColorDrawable(Color.TRANSPARENT))
           }
         },
