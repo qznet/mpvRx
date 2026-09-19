@@ -229,6 +229,24 @@ class MPVView(
     }
   }
 
+  /**
+   * Public safety net: bring the picture back if vo=mediacodec_embed never came up.
+   *
+   * Mirrors BaseMPVView.recoverVideoOutputIfNeeded(). The embed VO needs the OSD ANativeWindow at
+   * the moment it opens; if that window is not present (or the video surface binds after the OSD
+   * window) mpv aborts the open and deselects the video track, leaving audio over a black screen.
+   * This is a no-op whenever the video is already running, and waits for the OSD surface if it has
+   * not appeared yet (the OSD callback retries as soon as it shows up).
+   */
+  fun recoverVideoOutputIfNeeded() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    // Nothing can be done until the OSD surface exists.
+    if (isMediaCodecEmbedActive() && osdSurfaceView != null && !osdSurfaceReady) return
+    if (!isMediaCodecEmbedActive()) return
+    Log.w(TAG, "embed video output missing, re-opening vo=mediacodec_embed")
+    reopenEmbedVideoOutput()
+  }
+
   private var lastEmbedAspect: Double? = null
 
   /**
@@ -649,6 +667,18 @@ class MPVView(
       PlaybackSession.bindSurface(holder.surface, width, height, this, ownerIsActive = { surfaceBindingEnabled })
     // vo=mediacodec_embed needs both windows attached when the video output opens.
     syncOsdSurfaceAttachment()
+    // The OSD window may have been created before this video surface (a real SurfaceView creation
+    // race on Android — osd_surface is declared after player in the layout). In that case the OSD
+    // callback already re-opened the VO while the video surface was still absent, and the
+    // syncOsdSurfaceAttachment() call above short-circuits on osdSurfaceAttached. Re-open the embed
+    // VO here, now that the video surface is bound, so it picks up BOTH windows. This mirrors
+    // BaseMPVView.surfaceCreated, which always calls reopenVo() after the surface (re)binds.
+    if (isMediaCodecEmbedActive()) {
+      recoverVideoOutputIfNeeded()
+      // Belt-and-suspenders: if the OSD window showed up even later (or the file finished loading
+      // after the surface bound), re-check once more shortly after playback is expected to be up.
+      postDelayed({ recoverVideoOutputIfNeeded() }, 1000)
+    }
     registerEmbedRelayoutListener()
     applyFrameRate()
     post {
