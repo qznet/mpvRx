@@ -6328,11 +6328,16 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
       }
     val hasModifiers = modifierEvent != null
 
-    // On TV (always fullscreen/immersive) UP/DOWN step the playback speed while the controls are
-    // visible. This MUST run before the remote policy below: that policy delegates DPAD_UP/DOWN to
-    // the focused controls and returns early, which previously made the speed step unreachable, so
-    // the remote appeared dead on UP/DOWN.
-    if (isTelevision && !hasModifiers && isNoSheetOpen && viewModel.controlsShown.value) {
+    // On TV (always fullscreen/immersive) UP/DOWN step the playback speed — but ONLY while the video
+    // is actually playing. Per user requirement: "上下键要求是在全屏幕播放视频时是调节倍数，其它情况比如
+    // 全屏暂停、出现ui时都恢复 正常 上下功能". So when paused, or any sheet/panel is open, we must NOT
+    // swallow UP/DOWN here — we fall through to TvPlayerRemotePolicy, which delegates DPAD_UP/DOWN to
+    // the focused controls (normal list / control navigation).
+    // This MUST still run before the remote policy below, which would otherwise delegate UP/DOWN and
+    // make the speed step unreachable, so the remote appeared dead.
+    if (isTelevision && !hasModifiers && isNoSheetOpen &&
+      viewModel.panelShown.value == Panels.None && viewModel.paused == false
+    ) {
       when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP -> {
           consumedTvRemoteKeys += keyCode

@@ -90,8 +90,11 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.ui.icons.AppIcon
 import app.gyrolet.mpvrx.ui.icons.Icon
+import app.gyrolet.mpvrx.ui.player.controls.components.rememberTvInitialFocusRequester
 import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusGroup
+import app.gyrolet.mpvrx.ui.player.controls.components.tvInitialFocus
 import app.gyrolet.mpvrx.ui.theme.AppMotion
+import androidx.compose.ui.focus.focusProperties
 import app.gyrolet.mpvrx.ui.theme.LocalMotionPolicy
 import app.gyrolet.mpvrx.ui.theme.MotionPolicy
 import kotlinx.coroutines.flow.collectLatest
@@ -115,6 +118,11 @@ fun PlayerSheet(
   content: @Composable () -> Unit,
 ) {
   val scope = rememberCoroutineScope()
+  // TV/remote: request focus INTO the sheet content when it opens, so the DPad can navigate/select
+  // its rows instead of being trapped on the (hidden) first-layer player controls behind it. Ported
+  // from mpvEx-TV's PlayerSheet, which does the same via focusRequester.requestFocus() on open.
+  // rememberTvInitialFocusRequester already retries across the entrance animation and is TV-gated.
+  val sheetInitialFocus = rememberTvInitialFocusRequester()
   val reducedMotion = AppMotion.playerReducedMotion()
   val currentSheetSpec by rememberUpdatedState<FiniteAnimationSpec<Float>>(
     if (reducedMotion) snap() else AppMotion.Spatial.Expressive,
@@ -195,8 +203,9 @@ fun PlayerSheet(
           interactionSource = remember { MutableInteractionSource() },
           indication = null,
           onClick = internalOnDismissRequest,
-        ).fillMaxSize()
-        .background(Color.Black.copy(alpha))
+          ).fillMaxSize()
+          .focusProperties { canFocus = false }
+          .background(Color.Black.copy(alpha))
         .onSizeChanged {
           val anchors =
             DraggableAnchors {
@@ -220,8 +229,10 @@ fun PlayerSheet(
             remember(anchoredDraggableState) {
               anchoredDraggableState.preUpPostDownNestedScrollConnection()
             },
-          ).then(modifier)
+          )          .then(modifier)
           .tvFocusGroup()
+          .tvInitialFocus(sheetInitialFocus)
+          .focusProperties { canFocus = false }
           .offset {
             val baseOffset =
               anchoredDraggableState.offset
