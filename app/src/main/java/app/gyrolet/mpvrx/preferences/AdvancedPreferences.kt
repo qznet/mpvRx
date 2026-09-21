@@ -17,7 +17,17 @@ import app.gyrolet.mpvrx.ui.player.NotificationStyle
 class AdvancedPreferences(
   preferenceStore: PreferenceStore,
 ) {
-  val mpvConfStorageUri = preferenceStore.getString("mpv_conf_storage_location_uri")
+  // Default MPV config storage location to /storage/emulated/0/mpv on first run.
+  // SAF tree URI form for the primary-volume "mpv" folder. Until the user actually grants the
+  // picker permission, openPersistedTreeDocument() returns null and the app falls back to the
+  // in-app preferences (no crash). Picking the folder via the setting overwrites this with the
+  // real, granted URI. The script directory is derived as <this>/scripts, i.e.
+  // /storage/emulated/0/mpv/scripts.
+  val mpvConfStorageUri =
+    preferenceStore.getString(
+      "mpv_conf_storage_location_uri",
+      "content://com.android.externalstorage.documents/tree/primary:mpv",
+    )
   val mpvConf = preferenceStore.getString("mpv.conf")
   val inputConf = preferenceStore.getString("input.conf")
   val mpvConfOverrides = preferenceStore.getStringSet("mpv_conf_overrides", emptySet())
