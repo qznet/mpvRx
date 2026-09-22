@@ -127,6 +127,7 @@ import app.gyrolet.mpvrx.utils.media.SharedUrlExtractor
 import app.gyrolet.mpvrx.utils.media.SubtitleOps
 import app.gyrolet.mpvrx.utils.media.listTreeFilesSafely
 import app.gyrolet.mpvrx.utils.media.openPersistedTreeDocument
+import app.gyrolet.mpvrx.utils.media.treeUriToFilePath
 import app.gyrolet.mpvrx.utils.storage.FileTypeUtils
 import com.github.k1rakishou.fsaf.FileManager
 import `is`.xyz.mpv.MPVLib
@@ -2648,9 +2649,18 @@ class PlayerActivity :
       syncFonts(tree, rootChildren)
       Log.d(TAG, "Full MPV directory sync completed")
     } else {
-      // Fallback: use preferences-based config (no user directory set)
-      Log.d(TAG, "No MPV directory configured, using preferences fallback")
-      copyMPVConfigFromPreferences()
+      val dir = treeUriToFilePath(mpvConfStorageUri)?.let { File(it) }
+      if (dir != null && dir.isDirectory && dir.canRead()) {
+        // Android TV fallback: the document-tree picker is unavailable, so no SAF
+        // permission exists. Read the MPV config folder directly from the filesystem
+        // (the app holds READ/WRITE_EXTERNAL_STORAGE / MANAGE_EXTERNAL_STORAGE).
+        Log.d(TAG, "No SAF permission; syncing from user MPV directory via File API: $dir")
+        syncFromUserMpvDirectoryFile(dir)
+      } else {
+        // Fallback: use preferences-based config (no user directory set)
+        Log.d(TAG, "No MPV directory configured, using preferences fallback")
+        copyMPVConfigFromPreferences()
+      }
     }
     removeDisabledCachedScripts()
     }
@@ -2868,6 +2878,231 @@ class PlayerActivity :
       )
 
     Log.d(TAG, "Fonts sync: $count file(s) from MPV directory")
+  }
+
+  // ==================== Filesystem Sync (TV / no SAF permission fallback) ====================
+
+  /**
+   * Mirrors the SAF path in [syncFromUserMpvDirectory], but reads the user's MPV
+   * config folder directly from the filesystem. Used on Android TV, where the
+   * document-tree picker (and therefore persisted SAF permissions) is unavailable.
+   */
+  private fun syncFromUserMpvDirectoryFile(dir: File) {
+    Log.d(TAG, "Syncing from user MPV directory (filesystem): $dir")
+    syncConfigFilesFromFile(dir)
+    syncScriptsFromFile(dir)
+    syncScriptOptsFromFile(dir)
+    syncShadersFromFile(dir)
+    syncFontsFromFile(dir)
+    Log.d(TAG, "Full MPV directory sync (filesystem) completed")
+  }
+
+  private fun syncConfigFilesFromFile(dir: File) {
+    for (configName in listOf("mpv.conf", "input.conf")) {
+      runCatching {
+        val configFile = File(dir, configName).takeIf { it.isFile && it.canRead() }
+        if (configFile != null) {
+          val content = configFile.readText()
+          when (configName) {
+            "mpv.conf" -> mpvConfigCache.update(content)
+            "input.conf" -> {
+              writeTextFileIfChanged(File(filesDir, configName), content)
+              advancedPreferences.inputConf.set(content)
+            }
+          }
+          Log.d(TAG, "Synced config (file): $configName (${content.length} chars)")
+        } else {
+          val prefContent =
+            when (configName) {
+              "mpv.conf" -> advancedPreferences.mpvConf.get()
+              "input.conf" -> advancedPreferences.inputConf.get()
+              else -> ""
+            }
+          if (configName == MpvConfigCache.FILE_NAME) {
+            mpvConfigCache.ensureCurrent()
+          } else {
+            writeTextFileIfChanged(File(filesDir, configName), prefContent)
+          }
+          Log.d(TAG, "Config not found on disk, used preferences: $configName")
+        }
+      }.onFailure { e -> Log.e(TAG, "Error syncing config (file): $configName", e) }
+    }
+  }
+
+  private fun syncScriptsFromFile(dir: File) {
+    val internalScriptsDir = File(filesDir, "scripts")
+    internalScriptsDir.mkdirs()
+
+    if (!advancedPreferences.enableLuaScripts.get()) {
+      clearDirectoryContents(internalScriptsDir)
+      Log.d(TAG, "Scripts disabled, skipping")
+      return
+    }
+
+    val scriptsSubdir = File(dir, "scripts").takeIf { it.isDirectory }
+    val scriptsDir = scriptsSubdir ?: dir
+    val scriptExtensions = setOf("lua", "js")
+    val selectedScripts = advancedPreferences.selectedLuaScripts.get()
+
+    val expected = mutableSetOf<String>()
+    var count = 0
+    scriptsDir.listFiles()?.forEach { file ->
+      if (!file.isFile) return@forEach
+      val name = file.name
+      val extension = name.substringAfterLast('.', "").lowercase()
+      if (extension !in scriptExtensions) return@forEach
+      expected += name
+      if (selectedScripts.isNotEmpty() && name !in selectedScripts) return@forEach
+      if (copyFileIfNeeded(file, File(internalScriptsDir, name))) count++
+    }
+    internalScriptsDir.listFiles()?.forEach { existing ->
+      if (existing.isFile &&
+        existing.extension.lowercase() in scriptExtensions &&
+        (existing.name !in expected ||
+          (selectedScripts.isNotEmpty() && existing.name !in selectedScripts))
+      ) {
+        existing.delete()
+      }
+    }
+
+    val supportCount = if (scriptsSubdir != null) syncScriptSupportDirectoriesFromFile(scriptsSubdir) else 0
+    Log.d(
+      TAG,
+      "Scripts sync (file): $count file(s), $supportCount helper file(s) from ${if (scriptsSubdir != null) "scripts/" else "root"}",
+    )
+  }
+
+  private fun syncScriptSupportDirectoriesFromFile(scriptsDir: File): Int {
+    val internalScriptsDir = File(filesDir, "scripts")
+    val internalModulesDir = File(filesDir, "script-modules")
+    internalModulesDir.mkdirs()
+
+    if (!advancedPreferences.enableLuaScripts.get()) {
+      clearDirectoryContents(internalModulesDir)
+      return 0
+    }
+
+    clearDirectoryContents(internalModulesDir)
+
+    var copiedCount = 0
+    scriptsDir.listFiles()?.forEach { folder ->
+      if (!folder.isDirectory) return@forEach
+      val safeName = folder.name.takeIf { isSafeDocumentFileName(it) } ?: return@forEach
+      copiedCount += copyDirectoryRecursive(folder, File(internalScriptsDir, safeName), includeFile = { true })
+      copiedCount +=
+        copyDirectoryRecursive(
+          folder,
+          File(internalModulesDir, safeName),
+          includeFile = { n -> n.endsWith(".lua", ignoreCase = true) },
+        )
+    }
+    return copiedCount
+  }
+
+  private fun syncScriptOptsFromFile(dir: File) {
+    val internalScriptOptsDir = File(filesDir, "script-opts")
+    internalScriptOptsDir.mkdirs()
+    val scriptOptsDir = File(dir, "script-opts").takeIf { it.isDirectory } ?: return
+    val count = copyDirectoryFlat(scriptOptsDir, internalScriptOptsDir, includeFile = { true })
+    Log.d(TAG, "Script-opts sync (file): $count file(s)")
+  }
+
+  private fun syncShadersFromFile(dir: File) {
+    val shadersDir = File(filesDir, "shaders")
+    shadersDir.mkdirs()
+    val sourceDir = File(dir, "shaders").takeIf { it.isDirectory } ?: dir
+    val shaderExtensions = setOf("glsl", "hook", "comp")
+    val count =
+      copyDirectoryFlat(
+        sourceDir = sourceDir,
+        destinationDir = shadersDir,
+        includeFile = { n -> n.substringAfterLast('.', "").lowercase() in shaderExtensions },
+        protectedNames = Anime4KManager.BUILT_IN_SHADER_FILES,
+      )
+    Log.d(TAG, "Shaders sync (file): $count file(s)")
+  }
+
+  private fun syncFontsFromFile(dir: File) {
+    val internalFontsDir = File(filesDir, "fonts")
+    internalFontsDir.mkdirs()
+    internalFontsDir.listFiles()?.filter { it.isDirectory }?.forEach { it.deleteRecursively() }
+    val sourceDir = File(dir, "fonts").takeIf { it.isDirectory } ?: dir
+    val fontExtensions = setOf("ttf", "otf", "ttc", "woff", "woff2")
+    val count =
+      copyDirectoryFlat(
+        sourceDir = sourceDir,
+        destinationDir = internalFontsDir,
+        includeFile = { n -> n.substringAfterLast('.', "").lowercase() in fontExtensions },
+        deleteMissing = false,
+      )
+    Log.d(TAG, "Fonts sync (file): $count file(s)")
+  }
+
+  private fun copyFileIfNeeded(
+    source: File,
+    target: File,
+  ): Boolean {
+    val sourceLength = source.length()
+    val sourceLastModified = source.lastModified()
+    if (target.exists() &&
+      sourceLength >= 0L &&
+      target.length() == sourceLength &&
+      sourceLastModified > 0L &&
+      target.lastModified() == sourceLastModified
+    ) {
+      return false
+    }
+    target.parentFile?.mkdirs()
+    source.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+    if (sourceLastModified > 0L) target.setLastModified(sourceLastModified)
+    return true
+  }
+
+  private fun copyDirectoryFlat(
+    sourceDir: File,
+    destinationDir: File,
+    includeFile: (name: String) -> Boolean,
+    protectedNames: Set<String> = emptySet(),
+    deleteMissing: Boolean = true,
+  ): Int {
+    destinationDir.mkdirs()
+    val expected = mutableSetOf<String>()
+    var count = 0
+    sourceDir.listFiles()?.forEach { child ->
+      if (!child.isFile) return@forEach
+      val name = child.name
+      if (!includeFile(name)) return@forEach
+      expected += name
+      if (copyFileIfNeeded(child, File(destinationDir, name))) count++
+    }
+    if (deleteMissing) {
+      destinationDir.listFiles()?.forEach { existing ->
+        if (existing.isFile && existing.name !in expected && existing.name !in protectedNames) {
+          existing.delete()
+        }
+      }
+    }
+    return count
+  }
+
+  private fun copyDirectoryRecursive(
+    sourceDir: File,
+    destinationDir: File,
+    includeFile: (name: String) -> Boolean,
+  ): Int {
+    destinationDir.mkdirs()
+    var count = 0
+    sourceDir.listFiles()?.forEach { child ->
+      val name = child.name.takeIf { isSafeDocumentFileName(it) } ?: return@forEach
+      when {
+        child.isDirectory ->
+          count += copyDirectoryRecursive(File(sourceDir, name), File(destinationDir, name), includeFile)
+        child.isFile && includeFile(name) -> {
+          if (copyFileIfNeeded(child, File(destinationDir, name))) count++
+        }
+      }
+    }
+    return count
   }
 
   private fun syncBundledAssetsIfNeeded() {

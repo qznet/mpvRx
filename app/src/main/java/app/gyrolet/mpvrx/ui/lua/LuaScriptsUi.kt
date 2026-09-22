@@ -43,6 +43,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
+import app.gyrolet.mpvrx.utils.media.openPersistedTreeDocument
+import app.gyrolet.mpvrx.utils.media.treeUriToFilePath
+import java.io.File
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
@@ -75,13 +78,14 @@ fun rememberLuaScriptsCatalog(
       withContext(Dispatchers.IO) {
         runCatching {
           val scripts = mutableListOf<String>()
-          val tree = DocumentFile.fromTreeUri(context, storageUri.toUri())
+          val scriptExtensions = setOf("lua", "js")
+
+          val tree = openPersistedTreeDocument(context, storageUri)
           if (tree != null && tree.exists()) {
             val scriptsDir =
               tree.listFiles().firstOrNull {
                 it.isDirectory && it.name?.equals("scripts", ignoreCase = true) == true
               } ?: tree
-            val scriptExtensions = setOf("lua", "js")
 
             scriptsDir.listFiles().forEach { file ->
               if (!file.isFile) return@forEach
@@ -89,6 +93,24 @@ fun rememberLuaScriptsCatalog(
               val extension = name.substringAfterLast('.', "").lowercase()
               if (extension in scriptExtensions) {
                 scripts += name
+              }
+            }
+          } else {
+            // Android TV has no document-tree picker, so SAF permissions are never
+            // granted. Read the scripts folder directly from the filesystem instead
+            // (the app holds broad storage access via the manifest).
+            val basePath = treeUriToFilePath(storageUri)
+            if (basePath != null) {
+              val scriptsDir =
+                File(basePath, "scripts").takeIf { it.isDirectory }
+                  ?: File(basePath).takeIf { it.isDirectory }
+              scriptsDir?.listFiles()?.forEach { file ->
+                if (!file.isFile) return@forEach
+                val name = file.name
+                val extension = name.substringAfterLast('.', "").lowercase()
+                if (extension in scriptExtensions) {
+                  scripts += name
+                }
               }
             }
           }
