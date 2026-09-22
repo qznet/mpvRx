@@ -2933,16 +2933,9 @@ class PlayerActivity :
     val internalScriptsDir = File(filesDir, "scripts")
     internalScriptsDir.mkdirs()
 
-    if (!advancedPreferences.enableLuaScripts.get()) {
-      clearDirectoryContents(internalScriptsDir)
-      Log.d(TAG, "Scripts disabled, skipping")
-      return
-    }
-
     val scriptsSubdir = File(dir, "scripts").takeIf { it.isDirectory }
     val scriptsDir = scriptsSubdir ?: dir
     val scriptExtensions = setOf("lua", "js")
-    val selectedScripts = advancedPreferences.selectedLuaScripts.get()
 
     val expected = mutableSetOf<String>()
     var count = 0
@@ -2952,17 +2945,21 @@ class PlayerActivity :
       val extension = name.substringAfterLast('.', "").lowercase()
       if (extension !in scriptExtensions) return@forEach
       expected += name
-      if (selectedScripts.isNotEmpty() && name !in selectedScripts) return@forEach
       if (copyFileIfNeeded(file, File(internalScriptsDir, name))) count++
     }
     internalScriptsDir.listFiles()?.forEach { existing ->
       if (existing.isFile &&
         existing.extension.lowercase() in scriptExtensions &&
-        (existing.name !in expected ||
-          (selectedScripts.isNotEmpty() && existing.name !in selectedScripts))
+        existing.name !in expected
       ) {
         existing.delete()
       }
+    }
+
+    if (count > 0 && !advancedPreferences.enableLuaScripts.get()) {
+      // On TV the script manager UI cannot list/select scripts (no SAF picker), so the
+      // filesystem sync is authoritative. Mark scripts enabled so other surfaces reflect it.
+      advancedPreferences.enableLuaScripts.set(true)
     }
 
     val supportCount = if (scriptsSubdir != null) syncScriptSupportDirectoriesFromFile(scriptsSubdir) else 0
@@ -2976,11 +2973,6 @@ class PlayerActivity :
     val internalScriptsDir = File(filesDir, "scripts")
     val internalModulesDir = File(filesDir, "script-modules")
     internalModulesDir.mkdirs()
-
-    if (!advancedPreferences.enableLuaScripts.get()) {
-      clearDirectoryContents(internalModulesDir)
-      return 0
-    }
 
     clearDirectoryContents(internalModulesDir)
 
@@ -3420,6 +3412,9 @@ class PlayerActivity :
   }
 
   private fun removeDisabledCachedScripts() {
+    // On Android TV the script manager cannot list/select scripts (no SAF picker), so the
+    // filesystem sync is the single source of truth. Never prune its output here.
+    if (isTelevision) return
     val enabled = advancedPreferences.enableLuaScripts.get()
     val selected = if (enabled) advancedPreferences.selectedLuaScripts.get() else emptySet()
     File(filesDir, "scripts").listFiles()?.forEach { file ->
