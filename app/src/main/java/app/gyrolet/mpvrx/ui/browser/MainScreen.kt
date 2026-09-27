@@ -91,6 +91,8 @@ import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.MediaServerPreferences
 import app.gyrolet.mpvrx.preferences.MusicSourceProvider
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
+import app.gyrolet.mpvrx.preferences.BrowserPreferences
+import app.gyrolet.mpvrx.preferences.DefaultMainTab
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.gyrolet.mpvrx.presentation.Screen
@@ -99,6 +101,7 @@ import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.browser.folderlist.FolderListScreen
 import app.gyrolet.mpvrx.ui.browser.music.MusicLibraryContent
 import app.gyrolet.mpvrx.ui.browser.networkstreaming.NetworkStreamingScreen
+import app.gyrolet.mpvrx.ui.browser.networkstreaming.NetworkBrowserScreen
 import app.gyrolet.mpvrx.ui.browser.playlist.PlaylistScreen
 import app.gyrolet.mpvrx.ui.browser.recentlyplayed.RecentlyPlayedScreen
 import app.gyrolet.mpvrx.ui.icons.Icon
@@ -165,10 +168,10 @@ object MainScreen : Screen {
     val backStack = LocalBackStack.current
     val appearancePreferences = koinInject<AppearancePreferences>()
     val playerPreferences = koinInject<PlayerPreferences>()
+    val browserPreferences = koinInject<BrowserPreferences>()
     val navStyle by playerPreferences.appNavStyle.collectAsState()
     val animSpeed by playerPreferences.animationSpeed.collectAsState()
     val duration = navigationDurationMillis(animSpeed)
-    var persistentSelectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     val mediaServerPreferences = koinInject<MediaServerPreferences>()
     val musicSourceProvider by mediaServerPreferences.musicSourceProvider.collectAsState()
     val showMusicTab by appearancePreferences.showMusicTab.collectAsState()
@@ -176,6 +179,7 @@ object MainScreen : Screen {
     val showPlaylistsTab by appearancePreferences.showPlaylistsTab.collectAsState()
     val showNetworkTab by appearancePreferences.showNetworkTab.collectAsState()
     val showJellyfinTab by appearancePreferences.showJellyfinTab.collectAsState()
+    val defaultMainTab by appearancePreferences.defaultMainTab.collectAsState()
     val hideNavigationBar = NavigationBarState.shouldHideNavigationBar
     val isPermissionDenied = NavigationBarState.isPermissionDenied
     val isDualPaneFolderSelected = NavigationBarState.isDualPaneFolderSelected
@@ -199,6 +203,13 @@ object MainScreen : Screen {
           if (showJellyfinTab) add(MainTab.JELLYFIN)
         }
       }
+
+    val initialTab =
+      remember(defaultMainTab, visibleTabs) {
+        val dt = runCatching { MainTab.valueOf(defaultMainTab.name) }.getOrDefault(MainTab.HOME)
+        if (dt in visibleTabs) dt else MainTab.HOME
+      }
+    var persistentSelectedTab by rememberSaveable { mutableStateOf(initialTab) }
 
     // Track whether the floating pill nav bar is on screen so the mini player can
     // sit at the very bottom when navigating to screens without it.
@@ -252,6 +263,26 @@ object MainScreen : Screen {
             }
           }
         }
+    }
+
+    // Feature: when the default-open tab is Network, jump straight into the last browsed connection's
+    // file list on first launch instead of landing on the connection cards.
+    var networkAutoOpened by remember { mutableStateOf(false) }
+    val autoBrowseNetworkOnLaunch by browserPreferences.autoBrowseNetworkOnLaunch.collectAsState()
+    LaunchedEffect(Unit) {
+      if (!networkAutoOpened && initialTab == MainTab.NETWORK && autoBrowseNetworkOnLaunch) {
+        val cid = browserPreferences.lastNetworkConnectionId.get()
+        if (cid >= 0) {
+          networkAutoOpened = true
+          backStack.navigateTo(
+            NetworkBrowserScreen(
+              connectionId = cid,
+              connectionName = browserPreferences.lastNetworkConnectionName.get(),
+              currentPath = browserPreferences.lastNetworkPath.get().ifBlank { "/" },
+            ),
+          )
+        }
+      }
     }
 
     val targetPage = pagerState.targetPage.coerceIn(0, (visibleTabs.size - 1).coerceAtLeast(0))

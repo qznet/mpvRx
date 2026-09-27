@@ -142,6 +142,14 @@ class BrowserPreferences(
   // Auto-scroll to last played media preference (like MX Player)
   val autoScrollToLastPlayed = preferenceStore.getBoolean("auto_scroll_to_last_played", false)
 
+  // When the default-open tab is Network, jump straight into the last browsed connection's file list.
+  val autoBrowseNetworkOnLaunch = preferenceStore.getBoolean("auto_browse_network_on_launch", true)
+
+  // Last network location the user browsed, so we can restore it on next launch.
+  val lastNetworkConnectionId = preferenceStore.getLong("last_network_connection_id", -1L)
+  val lastNetworkConnectionName = preferenceStore.getString("last_network_connection_name", "")
+  val lastNetworkPath = preferenceStore.getString("last_network_path", "/")
+
   // Maximum single-child folder levels skipped in one Tree View navigation step.
   val treeFlattenDepth = preferenceStore.getEnum("tree_flatten_depth", TreeFlattenDepth.Unlimited)
   val includeAudioBrowser = preferenceStore.getBoolean("include_audio_browser", false)

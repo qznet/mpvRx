@@ -54,6 +54,7 @@ import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
 import app.gyrolet.mpvrx.preferences.MultiChoiceSegmentedButton
+import app.gyrolet.mpvrx.preferences.DefaultMainTab
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.ThumbnailMode
 import app.gyrolet.mpvrx.preferences.ThumbnailQuality
@@ -914,6 +915,50 @@ object AppearancePreferencesScreen : Screen {
                 summary = {
                   Text(
                     text = stringResource(id = R.string.pref_nav_jellyfin_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+
+              val defaultMainTab by preferences.defaultMainTab.collectAsState()
+              val availableDefaultTabs =
+                remember(showMusicTab, showRecentsTab, showPlaylistsTab, showNetworkTab, showJellyfinTab) {
+                  DefaultMainTab.entries.filter { tab ->
+                    when (tab) {
+                      DefaultMainTab.HOME -> true
+                      DefaultMainTab.MUSIC -> showMusicTab
+                      DefaultMainTab.RECENTS -> showRecentsTab
+                      DefaultMainTab.PLAYLISTS -> showPlaylistsTab
+                      DefaultMainTab.NETWORK -> showNetworkTab
+                      DefaultMainTab.JELLYFIN -> showJellyfinTab
+                    }
+                  }
+                }
+              val defaultTabLabelRes: (DefaultMainTab) -> Int = { tab ->
+                when (tab) {
+                  DefaultMainTab.HOME -> R.string.ui_home
+                  DefaultMainTab.MUSIC -> R.string.ui_music
+                  DefaultMainTab.RECENTS -> R.string.ui_recents
+                  DefaultMainTab.PLAYLISTS -> R.string.ui_playlists
+                  DefaultMainTab.NETWORK -> R.string.ui_network
+                  DefaultMainTab.JELLYFIN -> R.string.ui_jellyfin
+                }
+              }
+              ListPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_nav_default_tab_title),
+                value = availableDefaultTabs.firstOrNull { it == defaultMainTab } ?: DefaultMainTab.HOME,
+                onValueChange = preferences.defaultMainTab::set,
+                values = availableDefaultTabs,
+                valueToText = { AnnotatedString(stringResource(defaultTabLabelRes(it))) },
+                title = { Text(stringResource(R.string.pref_nav_default_tab_title)) },
+                summary = {
+                  Text(
+                    stringResource(
+                      R.string.pref_nav_default_tab_summary,
+                      stringResource(defaultTabLabelRes(defaultMainTab)),
+                    ),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },

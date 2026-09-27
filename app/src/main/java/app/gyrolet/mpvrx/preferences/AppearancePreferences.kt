@@ -78,6 +78,7 @@ class AppearancePreferences(
   val showPlaylistsTab = preferenceStore.getBoolean("show_playlists_tab", true)
   val showNetworkTab = preferenceStore.getBoolean("show_network_tab", false)
   val showJellyfinTab = preferenceStore.getBoolean("show_jellyfin_tab", false)
+  val defaultMainTab = preferenceStore.getEnum("default_main_tab", DefaultMainTab.NETWORK)
   val showQuickPlayFab = preferenceStore.getBoolean("show_quick_play_fab", true)
   val quickPlayFabDirect = preferenceStore.getBoolean("quick_play_fab_direct", false)
 
@@ -185,6 +186,19 @@ enum class PortraitPlaybackControlsPosition(
 ) {
   Center("Center of screen"),
   BelowSeekbar("Between seekbar and controls"),
+}
+
+/**
+ * Which main browser tab to open when the app starts. Names mirror [app.gyrolet.mpvrx.ui.browser.MainScreen.MainTab]
+ * so the stored value can be resolved back to a tab by name.
+ */
+enum class DefaultMainTab {
+  HOME,
+  MUSIC,
+  RECENTS,
+  PLAYLISTS,
+  NETWORK,
+  JELLYFIN,
 }
 
 @Composable

@@ -80,7 +80,10 @@ import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.calculateResponsiveGridSpans
 import app.gyrolet.mpvrx.ui.utils.navigateTo
 import app.gyrolet.mpvrx.ui.utils.popSafely
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps
 import org.koin.compose.koinInject
 
 @Serializable
@@ -101,6 +104,7 @@ data class NetworkBrowserScreen(
     val networkSortOrder by browserPreferences.networkSortOrder.collectAsState()
     val networkLayoutMode by browserPreferences.networkLayoutMode.collectAsState()
     val includeAudioInBrowser by browserPreferences.includeAudioBrowser.collectAsState()
+    val autoScrollToLastPlayed by browserPreferences.autoScrollToLastPlayed.collectAsState()
     val bookmarks by bookmarkPreferences.bookmarks.collectAsState()
     val normalizedPath = remember(currentPath) { NetworkPath.from(currentPath) }
     val canBookmarkCurrentFolder = normalizedPath.segments.isNotEmpty()
@@ -124,6 +128,30 @@ data class NetworkBrowserScreen(
     val connection by viewModel.connection.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+
+    // Resolve the last played media file name once, so the file list can scroll to it.
+    var lastPlayedFileName by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+      lastPlayedFileName =
+        withContext(Dispatchers.IO) {
+          val entity = RecentlyPlayedOps.getLastPlayedEntity()
+          if (entity != null && entity.filePath.contains("://")) {
+            entity.fileName.takeIf { it.isNotBlank() }
+          } else {
+            null
+          }
+        }
+    }
+
+    // Persist the last browsed network location so the app can restore it on next launch.
+    LaunchedEffect(connection?.id, currentPath) {
+      val conn = connection
+      if (conn != null) {
+        browserPreferences.lastNetworkConnectionId.set(conn.id)
+        browserPreferences.lastNetworkConnectionName.set(conn.name)
+        browserPreferences.lastNetworkPath.set(currentPath)
+      }
+    }
 
     // UI State
     val isRefreshing = remember { mutableStateOf(false) }
@@ -263,6 +291,8 @@ data class NetworkBrowserScreen(
         networkLayoutMode = networkLayoutMode,
         includeAudio = includeAudioInBrowser,
         searchQuery = searchQuery,
+        lastPlayedFileName = lastPlayedFileName,
+        autoScrollToLastPlayed = autoScrollToLastPlayed,
         onRefresh = { viewModel.loadFiles() },
         onFolderClick = { folder ->
           backstack.navigateTo(
@@ -299,6 +329,8 @@ private fun NetworkBrowserContent(
   networkLayoutMode: MediaLayoutMode,
   includeAudio: Boolean,
   searchQuery: String,
+  lastPlayedFileName: String? = null,
+  autoScrollToLastPlayed: Boolean = false,
   onRefresh: suspend () -> Unit,
   onFolderClick: (NetworkFile) -> Unit,
   onVideoClick: (NetworkFile) -> Unit,
@@ -381,9 +413,29 @@ private fun NetworkBrowserContent(
         }
       val isGrid = networkLayoutMode == MediaLayoutMode.GRID
 
-      val listState = rememberLazyListState()
-      val gridState = rememberLazyGridState()
+      val matchIndex =
+        remember(videos, lastPlayedFileName) {
+          if (lastPlayedFileName != null) videos.indexOfFirst { it.name == lastPlayedFileName } else -1
+        }
+      val folderSectionCount = if (folders.isNotEmpty()) 1 + folders.size else 0
+      val videoHeaderCount = if (videos.isNotEmpty()) 1 else 0
+      val targetFlatIndex =
+        if (matchIndex >= 0) folderSectionCount + videoHeaderCount + matchIndex else 0
+      val listState =
+        rememberLazyListState(
+          initialFirstVisibleItemIndex = if (autoScrollToLastPlayed && matchIndex >= 0) targetFlatIndex else 0,
+        )
+      val gridState =
+        rememberLazyGridState(
+          initialFirstVisibleItemIndex = if (autoScrollToLastPlayed && matchIndex >= 0) targetFlatIndex else 0,
+        )
       val hasEnoughItems = (folders.size + videos.size) > 20
+
+      LaunchedEffect(videos, matchIndex, autoScrollToLastPlayed) {
+        if (autoScrollToLastPlayed && matchIndex >= 0 && targetFlatIndex >= 0) {
+          if (isGrid) gridState.scrollToItem(targetFlatIndex) else listState.scrollToItem(targetFlatIndex)
+        }
+      }
 
       val scrollbarAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (hasEnoughItems) 1f else 0f,
