@@ -545,8 +545,7 @@ fun PlayerControls(
     isPlayerDrawerShown,
     showControlsDrawer,
   ) {
-    if (!isTelevision &&
-      !isAudioOnly &&
+    if (!isAudioOnly &&
       controlsShown &&
       paused == false &&
       !isSeeking &&

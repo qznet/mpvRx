@@ -6537,7 +6537,11 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
     val current = PlaybackSession.getPropertyDouble("speed") ?: 1.0
     val next = (current + delta).coerceIn(0.1, 4.0)
     PlaybackSession.setPropertyDouble("speed", next)
-    viewModel.showControls()
+    // Intentionally NOT calling viewModel.showControls() here: on Android TV, showing the controls
+    // also forces the system status/navigation bars + the full control bar to pop up, which covers
+    // the video and interferes with continuous speed scrubbing. Per user requirement, UP/DOWN in
+    // fullscreen playback should only surface the speed value (the toast below), just like LEFT/RIGHT
+    // only surfaces the seekbar. The OK key remains the only one that reveals the full controls.
     viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
   }
 
