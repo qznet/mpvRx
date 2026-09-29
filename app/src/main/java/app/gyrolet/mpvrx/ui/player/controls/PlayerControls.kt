@@ -152,6 +152,7 @@ import app.gyrolet.mpvrx.ui.player.controls.components.MultipleSpeedPlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.ResumeAvailablePlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.ResumedFromPlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.SeekPlayerUpdate
+import app.gyrolet.mpvrx.ui.player.controls.components.SeekTimeOverlay
 import app.gyrolet.mpvrx.ui.player.controls.components.SeekbarWithTimers
 import app.gyrolet.mpvrx.ui.player.controls.components.TextPlayerUpdate
 import app.gyrolet.mpvrx.ui.player.controls.components.VolumeSlider
@@ -2118,6 +2119,11 @@ val activePlayerDrawerButtons =
         )
       }
     }
+
+    // Middle-of-screen "position / duration" badge for the remote's seek keys. Emitted last so it
+    // stays above the controls layer.
+    val seekTimeOverlayText by viewModel.seekTimeOverlayText.collectAsState()
+    SeekTimeOverlay(text = seekTimeOverlayText)
   }
 }
 
