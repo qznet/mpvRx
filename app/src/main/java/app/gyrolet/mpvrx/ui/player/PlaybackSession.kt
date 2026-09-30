@@ -386,12 +386,11 @@ object PlaybackSession : MPVLib.EventObserver {
   fun unbindSurface(owner: Any): Boolean =
     withCore(default = false) {
       if (attachedSurfaceOwner !== owner || !_state.value.surfaceAttached) return@withCore false
-      if (_state.value.phase == PlaybackPhase.LOADING) {
-        deferredVideoSelectionGeneration = _state.value.generation
-        runCatching { MPVLib.setPropertyString("vid", "no") }
-      } else {
-        suspendVideoTrackForSurfaceLossLocked()
-      }
+      // Losing the Surface (home button, app switch, Activity recreation) is a renderer event, not
+      // a media event. Deselecting `vid` here makes mpv's demuxer drop every cached video packet
+      // for that stream, so a brief visit to the launcher throws away the whole read-ahead cache and
+      // forces a re-download on return. Tear down only the renderer and let the hardware decoder
+      // follow the `vo` teardown below. (Port of upstream 70843b34; default path on mediacodec hwdec.)
       detachRendererSurfaceLocked()
       true
     }
@@ -1763,19 +1762,6 @@ object PlaybackSession : MPVLib.EventObserver {
     activeAmbientShaderPaths.clear()
     desiredAmbientScaleX = 1.0
     desiredAmbientScaleY = 1.0
-  }
-
-  private fun suspendVideoTrackForSurfaceLossLocked() {
-    val current = _state.value
-    if (current.phase !in setOf(PlaybackPhase.READY, PlaybackPhase.BACKGROUND)) return
-    val activeHardwareDecoder = MPVLib.getPropertyString("hwdec-current").orEmpty()
-    if (!activeHardwareDecoder.contains("mediacodec", ignoreCase = true)) return
-    val activeVid = MPVLib.getPropertyInt("vid") ?: -1
-    if (activeVid > 0) {
-      suspendedVideoTrack = SuspendedVideoTrack(activeVid, current.generation)
-      // Stop video decoding before the ANativeWindow disappears. Audio remains active.
-      runCatching { MPVLib.setPropertyString("vid", "no") }
-    }
   }
 
   private fun restoreSuspendedVideoTrackLocked() {

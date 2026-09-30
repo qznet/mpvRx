@@ -5277,7 +5277,8 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
   val resumeMode = playerPreferences.resumePlaybackMode.get()
   val hasValidSavedPosition = state.lastPosition > 3
   if (!playerPreferences.savePositionOnQuit.get() || !hasValidSavedPosition) {
-    PlaybackSession.setPropertyInt("time-pos", 0)
+    // A fresh load already begins at time-pos 0; an explicit seek to zero here flushes the decoder
+    // and briefly blacks out playback on affected files. Nothing to restore, just return.
     return
   }
 
@@ -5292,14 +5293,14 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?) {
     }
 
     ResumePlaybackMode.Ask -> {
-      PlaybackSession.setPropertyInt("time-pos", 0)
+      // Already at 0 after load; seeking to zero would flush the decoder. Show the resume prompt.
       withContext(Dispatchers.Main) {
         viewModel.playerUpdate.value = PlayerUpdates.ResumeAvailable(state.lastPosition)
       }
     }
 
     ResumePlaybackMode.Never -> {
-      PlaybackSession.setPropertyInt("time-pos", 0)
+      // Already at 0 after load; no need to seek back to zero.
       if (playerPreferences.showResumeIndicatorOverlay.get()) {
         withContext(Dispatchers.Main) {
           viewModel.playerUpdate.value = PlayerUpdates.StartedAfresh
