@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SELECTED_FLAVOR: ${{ inputs.build_flavor || 'standard' }}
+  SELECTED_FLAVOR: ${{ inputs.build_flavor || 'fongmi' }}
 
 jobs:
   build:
