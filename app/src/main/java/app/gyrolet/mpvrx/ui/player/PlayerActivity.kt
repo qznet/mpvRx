@@ -218,6 +218,9 @@ class PlayerActivity :
   private var orientationFromPlayback = false
   private val consumedTvRemoteKeys = mutableSetOf<Int>()
 
+  /** Playback-speed step applied per DPAD press during fullscreen TV playback. */
+  private val tvSpeedStep = 0.1
+
   /**
    * Observer for MPV events.
    */
@@ -6921,6 +6924,19 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
    * @param event The key event
    * @return true if event was handled, false otherwise
    */
+  /** Adjusts playback speed by [delta] (e.g. +0.1 / -0.1) and surfaces a brief confirmation. */
+  private fun adjustPlaybackSpeedByStep(delta: Double) {
+    val current = PlaybackSession.getPropertyDouble("speed") ?: 1.0
+    val next = (current + delta).coerceIn(0.1, 4.0)
+    PlaybackSession.setPropertyDouble("speed", next)
+    // Intentionally NOT calling viewModel.showControls() here: on Android TV, showing the controls
+    // also forces the system status/navigation bars + the full control bar to pop up, which covers
+    // the video and interferes with continuous speed scrubbing. Per user requirement, UP/DOWN in
+    // fullscreen playback should only surface the speed value (the toast below), just like LEFT/RIGHT
+    // only surfaces the seekbar. The OK key remains the only one that reveals the full controls.
+    viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+  }
+
   @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
   override fun onKeyDown(
     keyCode: Int,
@@ -6937,6 +6953,30 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
         it.isShiftPressed || it.isCtrlPressed || it.isAltPressed || it.isMetaPressed
       }
     val hasModifiers = modifierEvent != null
+
+    // On TV (always fullscreen/immersive) UP/DOWN step the playback speed — but ONLY while the video
+    // is actually playing. Per user requirement: "上下键要求是在全屏幕播放视频时是调节倍数，其它情况比如
+    // 全屏暂停、出现ui时都恢复 正常 上下功能". So when paused, or any sheet/panel is open, we must NOT
+    // swallow UP/DOWN here — we fall through to TvPlayerRemotePolicy, which delegates DPAD_UP/DOWN to
+    // the focused controls (normal list / control navigation).
+    // This MUST run before the remote-policy block below, which would otherwise delegate UP/DOWN and
+    // make the speed step unreachable, so the remote appeared dead.
+    if (isTelevision && !hasModifiers && isNoSheetOpen &&
+      viewModel.panelShown.value == Panels.None && viewModel.paused == false
+    ) {
+      when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_UP -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(tvSpeedStep)
+          return true
+        }
+        KeyEvent.KEYCODE_DPAD_DOWN -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(-tvSpeedStep)
+          return true
+        }
+      }
+    }
 
     if (isTelevision && !hasModifiers) {
       val overlayVisible = viewModel.sheetShown.value != Sheets.None || viewModel.panelShown.value != Panels.None
