@@ -185,7 +185,11 @@ android {
       isEnable = !isBundleBuild
       reset()
       include(*activeAbis.toTypedArray())
-      isUniversalApk = activeAbis.size > 1
+      // Always emit one universal-named APK per flavor. With a single requested ABI
+      // (for example -PtargetAbi=armeabi-v7a) AGP 9 otherwise builds an ABI split that
+      // has no "non-density" base APK and the resource link task fails with
+      // "No non-density apk found". The packaged native libraries still follow activeAbis.
+      isUniversalApk = true
     }
   }
 

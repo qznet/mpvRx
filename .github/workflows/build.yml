@@ -136,9 +136,10 @@ jobs:
             flavor_dir="app/build/outputs/apk/fongmi/release"
             test -d "$flavor_dir"
             shopt -s nullglob
+            signed_apks=("$flavor_dir"/app-fongmi-*-release.apk)
             unsigned_apks=("$flavor_dir"/app-fongmi-*-release-unsigned.apk)
             shopt -u nullglob
-            if [[ ${#unsigned_apks[@]} -eq 0 ]]; then
+            if [[ ${#signed_apks[@]} -eq 0 && ${#unsigned_apks[@]} -eq 0 ]]; then
               echo "No fongmi release APK found"
               find app/build/outputs/apk -type f -name '*.apk' -print || true
               exit 1
@@ -146,6 +147,15 @@ jobs:
             for unsigned in "${unsigned_apks[@]}"; do
               signed="${unsigned/-unsigned/}"
               sign_apk "$unsigned" "$signed" "fongmi release"
+            done
+            for apk in "${signed_apks[@]}"; do
+              # AGP already signed the release variant with the debug signing config.
+              # Re-sign it in place with the release key through a staging copy.
+              staged="${apk%.apk}-staged.apk"
+              "$apksigner" sign               --ks "$KEYSTORE_PATH"               --ks-key-alias "$ALIAS"               --ks-pass "pass:$STOREPASS"               --key-pass "pass:$KEYPASS"               --out "$staged"               "$apk"
+              "$apksigner" verify --verbose "$staged"
+              rm -f "$apk"
+              mv -f "$staged" "$apk"
             done
           fi
 
@@ -174,12 +184,13 @@ jobs:
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "dual" || "$SELECTED_FLAVOR" == "fongmi" ]]; then
             flavor="fongmi"
             flavor_dir="app/build/outputs/apk/fongmi/release"
-            if ! compgen -G "$flavor_dir/app-${flavor}-armeabi-v7a-release*.apk" >/dev/null; then
-              echo "No armeabi-v7a release APK found for $flavor"
+            if ! compgen -G "$flavor_dir/app-${flavor}-universal-release*.apk" >/dev/null; then
+              echo "No universal release APK found for $flavor"
               exit 1
             fi
-            if compgen -G "$flavor_dir/app-${flavor}-universal-release*.apk" >/dev/null; then
-              echo "$flavor unexpectedly produced a universal APK (expected pure v7a thin package)"
+            if find "$flavor_dir" -maxdepth 1 -type f -name "app-${flavor}-*-release*.apk" ! -name "app-${flavor}-universal-release*.apk" | grep -q .; then
+              echo "$flavor produced an unexpected ABI-specific APK"
+              find "$flavor_dir" -maxdepth 1 -type f -name '*.apk' -print
               exit 1
             fi
           fi
@@ -253,7 +264,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: app-fongmi-release-${{ env.SHORT_SHA }}
-          path: app/build/outputs/apk/fongmi/release/app-fongmi-armeabi-v7a-release*.apk
+          path: app/build/outputs/apk/fongmi/release/app-fongmi-universal-release*.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
