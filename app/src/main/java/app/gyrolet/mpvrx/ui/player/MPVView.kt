@@ -10,12 +10,15 @@
 package app.gyrolet.mpvrx.ui.player
 
 import android.content.Context
+import android.graphics.PixelFormat
 import android.os.Environment
 import android.util.AttributeSet
 import android.util.Log
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import androidx.core.view.WindowInsetsCompat
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
@@ -447,12 +450,26 @@ class MPVView(
   private fun initOptions() {
     val inputs = awaitInitInputs()
     PlaybackSession.setOptionString("profile", inputs.profile)
-    val backend = selectRenderBackend(inputs.anime4kEnabled, inputs.gpuNextEnabled, inputs.vulkanCapable)
+    val useMediaCodecEmbed = isMediaCodecEmbedActive()
+    val backend =
+      if (useMediaCodecEmbed) {
+        RenderBackendSelection(
+          vo = "mediacodec_embed",
+          gpuApi = "",
+          gpuContext = "",
+          reason = "MediaCodec Embed (zero-copy) video output requested",
+        )
+      } else {
+        selectRenderBackend(inputs.anime4kEnabled, inputs.gpuNextEnabled, inputs.vulkanCapable)
+      }
     val useVulkan = backend.gpuApi == "vulkan"
     val hwdecMode = preferredHwdecMode(useVulkan)
     PlaybackSession.setVideoOutput(backend.vo)
-    PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
-    PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    if (!useMediaCodecEmbed) {
+      // gpu-api / gpu-context are incompatible with vo=mediacodec_embed; omit them there.
+      PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
+      PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    }
 
     val isLinearAvailable = useVulkan && backend.vo == "gpu-next"
     val hdrScreenMode =
@@ -466,7 +483,7 @@ class MPVView(
         }
       }
     val hdrPipelineReady = hdrScreenMode != HdrScreenMode.LINEAR || isLinearAvailable
-    if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
+    if (!useMediaCodecEmbed && !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
       applyHdrScreenOutputOptions(
         mode = hdrScreenMode,
         pipelineReady = hdrPipelineReady,
@@ -477,10 +494,16 @@ class MPVView(
     // Fongmi can map direct MediaCodec frames into Vulkan; other Vulkan builds start with copy mode.
     if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HARDWARE_DECODER)) {
       val hardwareDecoderCodecs = inputs.hardwareDecoderCodecs
-      PlaybackSession.setOptionString(
-        "hwdec",
-        if (hardwareDecoderCodecs.isEmpty()) "no" else hwdecMode,
-      )
+      val effectiveHwdec =
+        if (useMediaCodecEmbed) {
+          // Embedded MediaCodec surface requires direct (non-copy) HW decoding.
+          if (hardwareDecoderCodecs.isNotEmpty()) "mediacodec" else "no"
+        } else if (hardwareDecoderCodecs.isEmpty()) {
+          "no"
+        } else {
+          hwdecMode
+        }
+      PlaybackSession.setOptionString("hwdec", effectiveHwdec)
       if (hardwareDecoderCodecs.isNotEmpty()) {
         PlaybackSession.setOptionString("hwdec-codecs", hardwareDecoderCodecs.joinToString(","))
       }
@@ -605,6 +628,143 @@ class MPVView(
     PlaybackSession.setOptionString("osd-margin-y", verticalMargin.toString())
   }
 
+  // ==================== MediaCodec embed (HW+) OSD window ====================
+
+  private var osdSurfaceView: SurfaceView? = null
+  private var osdSurfaceReady = false
+  private var osdSurfaceAttached = false
+
+  /**
+   * Wires the second SurfaceView that vo=mediacodec_embed renders its OSD/subtitles into.
+   *
+   * MediaCodec hands the decoded frame straight to the player surface, so mpv has no GL pass left
+   * to draw the OSD into and needs its own window (`android-osd-wid`). Without it mpv aborts the
+   * video output with "No Android OSD Surface is attached for direct MediaCodec output" and keeps
+   * playing audio over a black screen.
+   *
+   * Only ever attaches while the embedded video output is active, so gpu/gpu-next playback is
+   * completely unaffected.
+   */
+  fun setOsdSurfaceView(surfaceView: SurfaceView) {
+    if (osdSurfaceView === surfaceView) return
+    osdSurfaceView = surfaceView
+    surfaceView.holder.setFormat(PixelFormat.TRANSPARENT)
+    surfaceView.setZOrderMediaOverlay(true)
+    surfaceView.holder.addCallback(
+      object : SurfaceHolder.Callback {
+        override fun surfaceCreated(holder: SurfaceHolder) {
+          osdSurfaceReady = true
+          syncOsdSurfaceAttachment()
+        }
+
+        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+
+        override fun surfaceDestroyed(holder: SurfaceHolder) {
+          osdSurfaceReady = false
+          if (!osdSurfaceAttached) return
+          osdSurfaceAttached = false
+          runCatching { MPVLib.detachOsdSurface() }
+            .onFailure { Log.w(TAG, "Failed to detach OSD surface", it) }
+        }
+      },
+    )
+  }
+
+  /** Attaches/detaches the OSD window to match the currently active video output. */
+  fun syncOsdSurfaceAttachment() {
+    val view = osdSurfaceView ?: return
+    if (!isMediaCodecEmbedActive()) {
+      if (!osdSurfaceAttached) return
+      osdSurfaceAttached = false
+      runCatching { MPVLib.detachOsdSurface() }
+      return
+    }
+    if (osdSurfaceAttached || !osdSurfaceReady) return
+    val surface = view.holder.surface.takeIf { it.isValid } ?: return
+    runCatching { MPVLib.attachOsdSurface(surface) }
+      .onSuccess {
+        osdSurfaceAttached = true
+        // The VO may have been opened before the OSD window existed, in which case mpv gave up on
+        // the video track; reopen it so the picture actually comes back.
+        reopenEmbedVideoOutput()
+      }
+      .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
+  }
+
+  /**
+   * Re-opens the embedded video output so it picks up the OSD window.
+   *
+   * Setting `vo` to the value it already holds is a no-op, so it is switched through "null" first.
+   * When the open fails mpv deselects the video track entirely and never retries, so re-select it
+   * as well — otherwise the picture stays black until the next file is loaded.
+   */
+  private fun reopenEmbedVideoOutput() {
+    if (!isMediaCodecEmbedActive()) return
+    runCatching {
+      MPVLib.setPropertyString("vo", "null")
+      MPVLib.setPropertyString("vo", "mediacodec_embed")
+    }.onFailure { Log.w(TAG, "Failed to reopen embedded video output", it) }
+    reselectVideoTrack()
+  }
+
+  /**
+   * Re-selects the video track mpv dropped when the embed VO failed to open.
+   *
+   * mpv only (re)builds the video chain while a video track is active, so after it deselected the
+   * track every further `vo` change is silently inert. Re-selecting the track is what makes the new
+   * `vo` take effect.
+   */
+  private fun reselectVideoTrack() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    runCatching { MPVLib.setPropertyString("vid", "no") }
+    val trackCount = runCatching { MPVLib.getPropertyInt("track-list/count") }.getOrNull() ?: 0
+    for (index in 0 until trackCount) {
+      val type = runCatching { MPVLib.getPropertyString("track-list/$index/type") }.getOrNull()
+      if (type == "video") {
+        val id = runCatching { MPVLib.getPropertyInt("track-list/$index/id") }.getOrNull()
+        if (id != null) {
+          runCatching { MPVLib.setPropertyString("vid", id.toString()) }
+            .onSuccess { Log.w(TAG, "re-selected video track $id for mediacodec_embed") }
+            .onFailure { Log.w(TAG, "Failed to re-select video track $id", it) }
+          return
+        }
+      }
+    }
+    runCatching { MPVLib.setPropertyString("vid", "auto") }
+  }
+
+  /**
+   * Public safety net: bring the picture back if vo=mediacodec_embed never came up.
+   *
+   * The embed VO needs the OSD ANativeWindow at the moment it opens; if that window is not present
+   * (or the video surface binds after the OSD window) mpv aborts the open and deselects the video
+   * track, leaving audio over a black screen.
+   */
+  fun recoverVideoOutputIfNeeded() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    if (isMediaCodecEmbedActive() && osdSurfaceView != null && !osdSurfaceReady) return
+    if (!isMediaCodecEmbedActive()) return
+    Log.w(TAG, "embed video output missing, re-opening vo=mediacodec_embed")
+    reopenEmbedVideoOutput()
+  }
+
+  /**
+   * Render via MediaCodec's embedded (zero-copy) surface when the user set
+   * `vo=mediacodec_embed` (or `video-output=...`) in mpv.conf. This path must NOT emit gpu-api /
+   * gpu-context — they are incompatible with vo=mediacodec_embed and previously caused a
+   * black-screen-with-audio regression.
+   */
+  private fun isMediaCodecEmbedActive(): Boolean {
+    return advancedPreferences.mpvConf
+      .get()
+      .lineSequence()
+      .any { raw ->
+        val line = raw.substringBefore('#').trim()
+        line.equals("vo=mediacodec_embed", ignoreCase = true) ||
+          line.equals("video-output=mediacodec_embed", ignoreCase = true)
+      }
+  }
+
   private companion object {
     const val DEFAULT_OSD_SAFE_MARGIN = 16
     const val SURFACE_RETRY_MS = 250L
@@ -705,6 +865,13 @@ class MPVView(
         }
       },
     )
+    if (isMediaCodecEmbedActive()) {
+      // vo=mediacodec_embed needs both the video and OSD windows attached when the output opens.
+      syncOsdSurfaceAttachment()
+      recoverVideoOutputIfNeeded()
+      // Belt-and-suspenders: re-check shortly after playback is expected to be up.
+      postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+    }
   }
 
   override fun onRenderSurfaceDestroyed() {

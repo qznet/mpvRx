@@ -726,6 +726,9 @@ class PlayerActivity :
     releaseDetachedBackgroundPlaybackBeforeFreshLaunch()
     startMpvCorePreparation()
     setContentView(binding.root)
+
+    // Wire the second SurfaceView used by vo=mediacodec_embed for its OSD window.
+    binding.player.setOsdSurfaceView(binding.osdSurface)
     setupSystemBarsAutoHide()
     setupPipHelper()
 
