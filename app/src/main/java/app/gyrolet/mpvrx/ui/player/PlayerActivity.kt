@@ -4681,6 +4681,9 @@ class PlayerActivity :
       "video-params/aspect" -> {
         // Safety check: don't access MPV during cleanup
         if (!mpvInitialized || player.isExiting || isFinishing) return
+        // vo=mediacodec_embed bypasses mpv's scaler entirely, so the frame cannot be letterboxed
+        // inside mpv — resize the video view to the source DAR instead (no-op for gpu/gpu-next).
+        if (!isVideoAmbientPresentationActive) player.applyEmbedAspectRatio(value)
         scheduleVideoParamRefresh(reloadShaders = false)
       }
       "container-fps" -> {

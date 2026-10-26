@@ -19,6 +19,9 @@ import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.WindowInsetsCompat
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
@@ -765,6 +768,98 @@ class MPVView(
       }
   }
 
+  private var lastEmbedAspect: Double? = null
+
+  /**
+   * Letterboxes vo=mediacodec_embed at the view level.
+   *
+   * MediaCodec writes the frame directly into this SurfaceView's ANativeWindow, so mpv cannot scale
+   * or letterbox it the way gpu/gpu-next do internally. Shrinking the view to a centered rectangle
+   * that matches the source DAR lets the black parent show through as letterbox/pillarbox.
+   * No-op for every other video output.
+   */
+  fun applyEmbedAspectRatio(aspect: Double?) {
+    if (!isMediaCodecEmbedActive()) return
+    if (aspect != null && aspect > 0.0) lastEmbedAspect = aspect
+    applyEmbedAspectRatioBounds()
+  }
+
+  private fun applyEmbedAspectRatioBounds() {
+    if (!isMediaCodecEmbedActive()) return
+    val dar = lastEmbedAspect ?: return
+    val container = parent as? ViewGroup ?: return
+    val containerWidth = container.width
+    val containerHeight = container.height
+    if (containerWidth <= 0 || containerHeight <= 0) return
+    val containerDar = containerWidth.toDouble() / containerHeight.toDouble()
+    val videoWidth: Int
+    val videoHeight: Int
+    if (dar > containerDar) {
+      videoWidth = containerWidth
+      videoHeight = (containerWidth / dar).toInt()
+    } else {
+      videoWidth = (containerHeight * dar).toInt()
+      videoHeight = containerHeight
+    }
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == videoWidth && params.height == videoHeight) return
+    Log.i(TAG, "MediaCodec embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    params.width = videoWidth
+    params.height = videoHeight
+    params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+    params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+    params.topToTop = ConstraintLayout.LayoutParams.PARENT_ID
+    params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+    params.horizontalBias = 0.5f
+    params.verticalBias = 0.5f
+    layoutParams = params
+  }
+
+  /** Drops the embed letterbox from a previous session so gpu/gpu-next gets the full viewport back. */
+  private fun restoreFullSizeEmbedBounds() {
+    lastEmbedAspect = null
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == ViewGroup.LayoutParams.MATCH_PARENT &&
+      params.height == ViewGroup.LayoutParams.MATCH_PARENT
+    ) {
+      return
+    }
+    params.width = ViewGroup.LayoutParams.MATCH_PARENT
+    params.height = ViewGroup.LayoutParams.MATCH_PARENT
+    layoutParams = params
+  }
+
+  /**
+   * The aspect callback that drives [applyEmbedAspectRatioBounds] can arrive while the parent is
+   * still mid-layout, and no further aspect event comes for the same file — so recompute against
+   * the settled container size as well. Cheap: it bails out unless the rectangle really changes.
+   */
+  private val embedRelayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+    if (!isMediaCodecEmbedActive() || lastEmbedAspect == null) return@OnGlobalLayoutListener
+    // User-picked Crop (panscan) / Stretch / custom aspect must not be fought.
+    val override = PlaybackSession.getPropertyDouble("video-aspect-override") ?: -1.0
+    val panscan = PlaybackSession.getPropertyDouble("panscan") ?: 0.0
+    if (override > 0.0 || panscan >= 1.0) return@OnGlobalLayoutListener
+    applyEmbedAspectRatioBounds()
+  }
+
+  private var embedRelayoutListenerRegistered = false
+
+  private fun registerEmbedRelayoutListener() {
+    if (embedRelayoutListenerRegistered || !isMediaCodecEmbedActive()) return
+    if (!viewTreeObserver.isAlive) return
+    embedRelayoutListenerRegistered = true
+    viewTreeObserver.addOnGlobalLayoutListener(embedRelayoutListener)
+  }
+
+  private fun unregisterEmbedRelayoutListener() {
+    if (!embedRelayoutListenerRegistered) return
+    embedRelayoutListenerRegistered = false
+    if (viewTreeObserver.isAlive) {
+      runCatching { viewTreeObserver.removeOnGlobalLayoutListener(embedRelayoutListener) }
+    }
+  }
+
   private companion object {
     const val DEFAULT_OSD_SAFE_MARGIN = 16
     const val SURFACE_RETRY_MS = 250L
@@ -871,12 +966,16 @@ class MPVView(
       recoverVideoOutputIfNeeded()
       // Belt-and-suspenders: re-check shortly after playback is expected to be up.
       postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+      // Keep the view letterboxed to the source DAR once layout settles (mpv can't scale embed).
+      registerEmbedRelayoutListener()
     }
   }
 
   override fun onRenderSurfaceDestroyed() {
     cancelSurfaceRecovery()
     cancelPausedFrameRedraw()
+    unregisterEmbedRelayoutListener()
+    restoreFullSizeEmbedBounds()
     surfaceAttachmentGeneration++
     isSurfaceReady = false
     lastRequestedFrameRate = Float.NaN
