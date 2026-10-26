@@ -784,21 +784,29 @@ class MPVView(
     // (it frequently reports the surface/container ratio, so a 4:3 source would be letterboxed as
     // if it were 16:9 and end up stretched). Derive the true DAR from the decoded width/height +
     // rotation, which is always correct; fall back to the event value only if dimensions are unknown.
+    // No synchronous mpv read here: both sources above are cached/event values. A synchronous
+    // PlaybackSession property read on the observer thread is what froze the UI previously.
     val dar = computeEmbedDisplayAspect()
       ?: aspect?.takeIf { it > 0.0 }
-      ?: getVideoOutAspect()
     // Guard against an absurd aspect (a 0x0 / gigantic SurfaceView can crash the embedded decoder).
     val safeDar = dar?.takeIf { it in 0.2..5.0 }
     if (safeDar != null) lastEmbedAspect = safeDar
     applyEmbedAspectRatioBounds()
   }
 
-  /** True source DAR for vo=mediacodec_embed: decoded dimensions with rotation applied. */
+  /**
+   * True source DAR for vo=mediacodec_embed: decoded dimensions with rotation applied.
+   *
+   * Reads the cached observer values (fed by the dedicated video-params/w|h|rotate observers in
+   * [observedProps]) instead of calling into mpv synchronously. A synchronous [PlaybackSession]
+   * property read from inside an observer callback blocks the dispatch thread — that is what froze
+   * the UI (dead back button, then a watchdog-tripped crash) in the previous build.
+   */
   private fun computeEmbedDisplayAspect(): Double? {
-    val w = runCatching { PlaybackSession.getPropertyInt("video-params/w") }.getOrNull() ?: 0
-    val h = runCatching { PlaybackSession.getPropertyInt("video-params/h") }.getOrNull() ?: 0
+    val w = PlaybackSession.propInt["video-params/w"].value ?: 0
+    val h = PlaybackSession.propInt["video-params/h"].value ?: 0
     if (w <= 0 || h <= 0) return null
-    val rotate = runCatching { PlaybackSession.getPropertyInt("video-params/rotate") }.getOrNull() ?: 0
+    val rotate = PlaybackSession.propInt["video-params/rotate"].value ?: 0
     return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
   }
 
@@ -979,11 +987,17 @@ class MPVView(
       },
     )
     if (isMediaCodecEmbedActive()) {
-      // vo=mediacodec_embed needs both the video and OSD windows attached when the output opens.
+      // Force the OSD window to re-associate on every (re)bind. On a second playback the OSD surface
+      // view is still alive, so osdSurfaceAttached is left true from before and syncOsdSurfaceAttachment()
+      // would bail — leaving the embed VO opened blind (no OSD window) and the screen black. Resetting
+      // it here makes the re-sync actually run and re-open vo=mediacodec_embed with the OSD attached.
+      osdSurfaceAttached = false
       syncOsdSurfaceAttachment()
       recoverVideoOutputIfNeeded()
       // Belt-and-suspenders: re-check shortly after playback is expected to be up.
       postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+      // Re-letterbox to the source DAR once the layout settles (mpv cannot scale the embed output).
+      registerEmbedRelayoutListener()
     }
   }
 
