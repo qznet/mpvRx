@@ -780,8 +780,26 @@ class MPVView(
    */
   fun applyEmbedAspectRatio(aspect: Double?) {
     if (!isMediaCodecEmbedActive()) return
-    if (aspect != null && aspect > 0.0) lastEmbedAspect = aspect
+    // vo=mediacodec_embed bypasses mpv's scaler, and video-params/aspect is unreliable for it
+    // (it frequently reports the surface/container ratio, so a 4:3 source would be letterboxed as
+    // if it were 16:9 and end up stretched). Derive the true DAR from the decoded width/height +
+    // rotation, which is always correct; fall back to the event value only if dimensions are unknown.
+    val dar = computeEmbedDisplayAspect()
+      ?: aspect?.takeIf { it > 0.0 }
+      ?: getVideoOutAspect()
+    // Guard against an absurd aspect (a 0x0 / gigantic SurfaceView can crash the embedded decoder).
+    val safeDar = dar?.takeIf { it in 0.2..5.0 }
+    if (safeDar != null) lastEmbedAspect = safeDar
     applyEmbedAspectRatioBounds()
+  }
+
+  /** True source DAR for vo=mediacodec_embed: decoded dimensions with rotation applied. */
+  private fun computeEmbedDisplayAspect(): Double? {
+    val w = runCatching { PlaybackSession.getPropertyInt("video-params/w") }.getOrNull() ?: 0
+    val h = runCatching { PlaybackSession.getPropertyInt("video-params/h") }.getOrNull() ?: 0
+    if (w <= 0 || h <= 0) return null
+    val rotate = runCatching { PlaybackSession.getPropertyInt("video-params/rotate") }.getOrNull() ?: 0
+    return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
   }
 
   private fun applyEmbedAspectRatioBounds() {
@@ -966,8 +984,6 @@ class MPVView(
       recoverVideoOutputIfNeeded()
       // Belt-and-suspenders: re-check shortly after playback is expected to be up.
       postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
-      // Keep the view letterboxed to the source DAR once layout settles (mpv can't scale embed).
-      registerEmbedRelayoutListener()
     }
   }
 
