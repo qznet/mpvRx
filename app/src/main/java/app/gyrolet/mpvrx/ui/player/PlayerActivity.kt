@@ -218,6 +218,9 @@ class PlayerActivity :
   private var orientationFromPlayback = false
   private val consumedTvRemoteKeys = mutableSetOf<Int>()
 
+  /** Playback-speed step applied per DPAD press during fullscreen TV playback. */
+  private val tvSpeedStep = 0.1
+
   /**
    * Observer for MPV events.
    */
@@ -745,6 +748,8 @@ class PlayerActivity :
     releaseDetachedBackgroundPlaybackBeforeFreshLaunch()
     startMpvCorePreparation()
     setContentView(binding.root)
+    // vo=mediacodec_embed needs a separate transparent window for mpv's OSD/subtitles.
+    binding.player.setOsdSurfaceView(binding.osdSurface)
     setupPipHelper()
 
     // Let Android create/draw the Surface while assets and libmpv initialize. A blocking join
@@ -4629,6 +4634,14 @@ class PlayerActivity :
     value: Long,
   ) {
     when (property) {
+      "dolby-vision-profile" -> {
+        // mpv 0.42 reports the detected DV profile (0 = not DV). The direct MediaCodec output
+        // cannot tone-map DV/RPU metadata, so hand these sources to gpu-next.
+        if (!mpvInitialized || player.isExiting || isFinishing) return
+        if (value > 0 && player.onDolbyVisionDetected()) {
+          viewModel.showToast(getString(R.string.player_dv_switch_toast))
+        }
+      }
       "video-params/w",
       "video-params/h",
       -> {
@@ -4841,6 +4854,9 @@ class PlayerActivity :
       "video-params/aspect" -> {
         // Safety check: don't access MPV during cleanup
         if (!mpvInitialized || player.isExiting || isFinishing) return
+        // The embed VO bypasses mpv's scaler; letterbox it at the view level. This uses only
+        // cached observer values, never a synchronous mpv read on the dispatch thread.
+        player.applyEmbedAspectRatio(value)
         scheduleVideoParamRefresh(reloadShaders = false)
       }
       "container-fps" -> {
@@ -4903,6 +4919,10 @@ class PlayerActivity :
    */
   internal fun event(eventId: Int) {
     when (eventId) {
+      MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
+        // Each new file starts on the embed default again; a DV fallback must not leak over.
+        player.onPlaybackItemStarting()
+      }
       MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> {
         if (scriptRuntimeRestartPending || isFinishing || isDestroyed || !beginMediaRequest()) return
         mediaLoadJob?.cancel()
@@ -4918,6 +4938,17 @@ class PlayerActivity :
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) restartAfterCoreShutdown()
       }
       MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
+        // DV fallback: the profile observer can arrive after the first frame, so also probe here.
+        // These are ordinary event-thread reads (the same pattern used throughout file-loaded),
+        // never a synchronous read from inside an observer callback.
+        if (mpvInitialized && !player.isExiting && !isFinishing) {
+          val dvProfile =
+            PlaybackSession.getPropertyInt("dolby-vision-profile")
+              ?: PlaybackSession.getPropertyInt("source-dolby-vision-profile")
+          if (dvProfile != null && dvProfile > 0 && player.onDolbyVisionDetected()) {
+            viewModel.showToast(getString(R.string.player_dv_switch_toast))
+          }
+        }
         val loadGeneration = PlaybackSession.state.value.activeGeneration
         if (!PlaybackSession.isCurrentGeneration(loadGeneration)) return
         val recovery = pendingMediaLoadRecovery
@@ -7162,6 +7193,17 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
    * @param event The key event
    * @return true if event was handled, false otherwise
    */
+  /** Adjusts playback speed by [delta] (e.g. +0.1 / -0.1) and surfaces a brief confirmation. */
+  private fun adjustPlaybackSpeedByStep(delta: Double) {
+    val current = PlaybackSession.getPropertyDouble("speed") ?: 1.0
+    val next = (current + delta).coerceIn(0.1, 4.0)
+    PlaybackSession.setPropertyDouble("speed", next)
+    // Intentionally NOT calling viewModel.showControls() here: on Android TV, showing the controls
+    // also forces the system status/navigation bars + the full control bar to pop up, which covers
+    // the video and interferes with continuous speed scrubbing. UP/DOWN only surface the speed value.
+    viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+  }
+
   @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
   override fun onKeyDown(
     keyCode: Int,
@@ -7179,6 +7221,28 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
         it.isShiftPressed || it.isCtrlPressed || it.isAltPressed || it.isMetaPressed
       }
     val hasModifiers = modifierEvent != null
+
+    // On TV (always fullscreen/immersive) UP/DOWN step the playback speed — but ONLY while the
+    // video is actually playing and no sheet/panel is open. When paused or any UI is shown,
+    // UP/DOWN must fall through to normal TvPlayerRemotePolicy navigation. This MUST run before
+    // the remote-policy block below, which would otherwise delegate UP/DOWN and make the speed
+    // step unreachable.
+    if (isTelevision && !hasModifiers && isNoSheetOpen &&
+      viewModel.panelShown.value == Panels.None && viewModel.paused == false
+    ) {
+      when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_UP -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(tvSpeedStep)
+          return true
+        }
+        KeyEvent.KEYCODE_DPAD_DOWN -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(-tvSpeedStep)
+          return true
+        }
+      }
+    }
 
     if (isTelevision && !hasModifiers) {
       val overlayVisible = viewModel.sheetShown.value != Sheets.None || viewModel.panelShown.value != Panels.None

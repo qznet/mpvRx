@@ -3120,5 +3120,15 @@
   <string name="theme_color_primary">Main accent</string>
   <string name="theme_color_secondary">Secondary accent</string>
   <string name="theme_color_tertiary">Highlight accent</string>
+  <!-- Video output mode: MediaCodec embed (HW+) / Dolby Vision handling -->
+  <string name="pref_video_output_title">Video output mode</string>
+  <string name="pref_video_output_summary">Default: MediaCodec embed (HW+ zero-copy). Dolby Vision can fall back to gpu-next.</string>
+  <string name="pref_video_output_auto">Auto (embed + DV to gpu-next)</string>
+  <string name="pref_video_output_embed">Always MediaCodec embed (HW+)</string>
+  <string name="pref_video_output_gpu_next">Always gpu-next</string>
+  <string name="pref_dolby_auto_switch_title">Dolby Vision auto switch</string>
+  <string name="pref_dolby_auto_switch_summary">Switch to gpu-next when a Dolby Vision stream is detected (Auto mode only).</string>
+  <string name="player_speed_toast_format">Speed %1$sx</string>
+  <string name="player_dv_switch_toast">Dolby Vision detected - switched to gpu-next</string>
 </resources>
 

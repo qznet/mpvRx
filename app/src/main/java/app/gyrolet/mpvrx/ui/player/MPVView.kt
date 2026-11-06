@@ -11,6 +11,7 @@ package app.gyrolet.mpvrx.ui.player
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.os.Environment
 import android.os.SystemClock
@@ -20,6 +21,11 @@ import android.view.Display
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.WindowInsetsCompat
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
@@ -462,11 +468,16 @@ class MPVView(
     val backend = selectRenderBackend(
       inputs.anime4kEnabled, inputs.gpuNextEnabled, inputs.vulkanCapable && !forceOpenGlFallback,
     )
+    // vo=mediacodec_embed writes MediaCodec frames straight into the ANativeWindow (HW+ zero-copy),
+    // bypassing libplacebo. gpu-api / gpu-context are meaningless for it and must not be emitted.
+    val useMediaCodecEmbed = backend.vo == "mediacodec_embed"
     val useVulkan = backend.gpuApi == "vulkan"
     val hwdecMode = preferredHwdecMode(useVulkan)
     PlaybackSession.setVideoOutput(backend.vo)
-    PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
-    PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    if (!useMediaCodecEmbed) {
+      PlaybackSession.setOptionString("gpu-api", backend.gpuApi)
+      PlaybackSession.setOptionString("gpu-context", backend.gpuContext)
+    }
 
     val isLinearAvailable = useVulkan && backend.vo == "gpu-next"
     val hdrScreenMode =
@@ -480,7 +491,7 @@ class MPVView(
         }
       }
     val hdrPipelineReady = hdrScreenMode != HdrScreenMode.LINEAR || isLinearAvailable
-    if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
+    if (!useMediaCodecEmbed && !MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HDR_OUTPUT)) {
       applyHdrScreenOutputOptions(
         mode = hdrScreenMode,
         pipelineReady = hdrPipelineReady,
@@ -491,10 +502,16 @@ class MPVView(
     // Fongmi can map direct MediaCodec frames into Vulkan; other Vulkan builds start with copy mode.
     if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.HARDWARE_DECODER)) {
       val hardwareDecoderCodecs = inputs.hardwareDecoderCodecs
-      PlaybackSession.setOptionString(
-        "hwdec",
-        if (hardwareDecoderCodecs.isEmpty()) "no" else hwdecMode,
-      )
+      // The embedded MediaCodec surface requires direct (non-copy) HW decoding: hwdec=mediacodec.
+      val effectiveHwdec =
+        when {
+          // vo=mediacodec_embed requires direct (non-copy) HW decoding; force hwdec=mediacodec
+          // even when the codec probe returned an empty list on this device.
+          useMediaCodecEmbed -> "mediacodec"
+          hardwareDecoderCodecs.isEmpty() -> "no"
+          else -> hwdecMode
+        }
+      PlaybackSession.setOptionString("hwdec", effectiveHwdec)
       if (hardwareDecoderCodecs.isNotEmpty()) {
         PlaybackSession.setOptionString("hwdec-codecs", hardwareDecoderCodecs.joinToString(","))
       }
@@ -609,6 +626,8 @@ class MPVView(
     // libmpv is initialized here, but no file has been loaded yet. Unlike initOptions(),
     // it is safe to run change-list and shader property commands here.
     pendingStartupShaders?.let { selection ->
+      // gpu shader chains (Anime4K / HDR Toys) are meaningless for the direct MediaCodec output.
+      if (selection.backend.vo == "mediacodec_embed") return@let
       if (!MpvConfigOverridePolicy.ownsAny(MpvConfigControlledFeatures.ANIME4K)) {
         applyAnime4KShaders(selection.backend.vo, selection.backend.gpuApi)
       }
@@ -685,6 +704,260 @@ class MPVView(
     return true
   }
 
+  // ==================== vo=mediacodec_embed (HW+ zero-copy) support ====================
+
+  private var osdSurfaceView: SurfaceView? = null
+  private var osdSurfaceReady = false
+  private var osdSurfaceAttached = false
+
+  /** True while a Dolby Vision source has moved the running core off the embed VO. */
+  private var dolbyVisionFallbackActive = false
+
+  /** Preference-driven video output mode: "auto" (default), "embed", "gpu_next". */
+  private fun videoOutputMode(): String =
+    runCatching { decoderPreferences.videoOutputMode.get() }.getOrDefault("auto")
+
+  /** Whether the core should be configured with the embedded MediaCodec output. */
+  private fun isMediaCodecEmbedConfigured(): Boolean = videoOutputMode() != "gpu_next"
+
+  /** Whether the running core is currently targeting the embedded output. */
+  private fun isEmbedVoActive(): Boolean = PlaybackSession.videoOutput == "mediacodec_embed"
+
+  /**
+   * Wires the second SurfaceView that vo=mediacodec_embed renders its OSD/subtitles into.
+   *
+   * MediaCodec hands the decoded frame straight to the player surface, so mpv has no GL pass left
+   * to draw the OSD into and needs its own window (`android-osd-wid`). Without it mpv aborts the
+   * video output with "No Android OSD Surface is attached for direct MediaCodec output" and keeps
+   * playing audio over a black screen.
+   */
+  fun setOsdSurfaceView(surfaceView: SurfaceView) {
+    if (osdSurfaceView === surfaceView) return
+    osdSurfaceView = surfaceView
+    surfaceView.holder.setFormat(PixelFormat.TRANSPARENT)
+    surfaceView.setZOrderMediaOverlay(true)
+    surfaceView.holder.addCallback(
+      object : SurfaceHolder.Callback {
+        override fun surfaceCreated(holder: SurfaceHolder) {
+          osdSurfaceReady = true
+          syncOsdSurfaceAttachment()
+        }
+
+        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+
+        override fun surfaceDestroyed(holder: SurfaceHolder) {
+          osdSurfaceReady = false
+          detachOsdSurfaceIfNeeded()
+        }
+      },
+    )
+  }
+
+  private fun detachOsdSurfaceIfNeeded() {
+    if (!osdSurfaceAttached) return
+    osdSurfaceAttached = false
+    runCatching { MPVLib.detachOsdSurface() }
+      .onFailure { Log.w(TAG, "Failed to detach OSD surface", it) }
+  }
+
+  /** Attaches/detaches the OSD window to match the currently active video output. */
+  fun syncOsdSurfaceAttachment() {
+    val view = osdSurfaceView ?: return
+    if (!isEmbedVoActive()) {
+      detachOsdSurfaceIfNeeded()
+      return
+    }
+    if (osdSurfaceAttached || !osdSurfaceReady) return
+    val surface = view.holder.surface.takeIf { it.isValid } ?: return
+    runCatching { MPVLib.attachOsdSurface(surface) }
+      .onSuccess {
+        osdSurfaceAttached = true
+        // The VO may have been opened before the OSD window existed, in which case mpv gave up on
+        // the video track; reopen it so the picture actually comes back.
+        reopenEmbedVideoOutput()
+      }
+      .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
+  }
+
+  /**
+   * Re-opens the embedded video output so it picks up the OSD window. Setting `vo` to the value
+   * it already holds is a no-op, so it is switched through "null" first. When the open fails mpv
+   * deselects the video track entirely and never retries, so re-select it as well.
+   */
+  private fun reopenEmbedVideoOutput() {
+    if (!isEmbedVoActive()) return
+    runCatching {
+      MPVLib.setPropertyString("vo", "null")
+      MPVLib.setPropertyString("vo", "mediacodec_embed")
+    }.onFailure { Log.w(TAG, "Failed to reopen embedded video output", it) }
+    reselectVideoTrack()
+  }
+
+  private fun reselectVideoTrack() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    runCatching { MPVLib.setPropertyString("vid", "no") }
+    val trackCount = runCatching { MPVLib.getPropertyInt("track-list/count") }.getOrNull() ?: 0
+    for (index in 0 until trackCount) {
+      val type = runCatching { MPVLib.getPropertyString("track-list/$index/type") }.getOrNull()
+      if (type == "video") {
+        val id = runCatching { MPVLib.getPropertyInt("track-list/$index/id") }.getOrNull()
+        if (id != null) {
+          runCatching { MPVLib.setPropertyString("vid", id.toString()) }
+            .onSuccess { Log.w(TAG, "re-selected video track $id for mediacodec_embed") }
+            .onFailure { Log.w(TAG, "Failed to re-select video track $id", it) }
+          return
+        }
+      }
+    }
+    runCatching { MPVLib.setPropertyString("vid", "auto") }
+  }
+
+  /** Safety net: bring the picture back if vo=mediacodec_embed never came up. */
+  fun recoverVideoOutputIfNeeded() {
+    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
+    if (isEmbedVoActive() && osdSurfaceView != null && !osdSurfaceReady) return
+    if (!isEmbedVoActive()) return
+    Log.w(TAG, "embed video output missing, re-opening vo=mediacodec_embed")
+    reopenEmbedVideoOutput()
+  }
+
+  private var lastEmbedAspect: Double? = null
+
+  /**
+   * Letterboxes vo=mediacodec_embed at the view level. MediaCodec writes the frame directly into
+   * this SurfaceView's ANativeWindow, so mpv cannot scale or letterbox it the way gpu/gpu-next do
+   * internally. Shrinking the view to a centered rectangle that matches the source DAR lets the
+   * black parent show through as letterbox/pillarbox. No-op for every other video output.
+   */
+  fun applyEmbedAspectRatio(aspect: Double?) {
+    if (!isEmbedVoActive()) return
+    // video-params/aspect is unreliable for the embed VO (it often reports the surface/container
+    // ratio). Derive the true DAR from cached decoded width/height + rotation instead. Never read
+    // mpv synchronously from an observer callback: that blocked the dispatch thread and froze the
+    // UI in an earlier build.
+    val dar = computeEmbedDisplayAspect() ?: aspect?.takeIf { it > 0.0 }
+    val safeDar = dar?.takeIf { it in 0.2..5.0 }
+    if (safeDar != null) lastEmbedAspect = safeDar
+    applyEmbedAspectRatioBounds()
+  }
+
+  /** True source DAR: cached observer values only, no synchronous mpv access. */
+  private fun computeEmbedDisplayAspect(): Double? {
+    val w = PlaybackSession.propInt["video-params/w"].value ?: 0
+    val h = PlaybackSession.propInt["video-params/h"].value ?: 0
+    if (w <= 0 || h <= 0) return null
+    val rotate = PlaybackSession.propInt["video-params/rotate"].value ?: 0
+    return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
+  }
+
+  private fun applyEmbedAspectRatioBounds() {
+    if (!isEmbedVoActive()) return
+    val dar = lastEmbedAspect ?: return
+    val container = parent as? ViewGroup ?: return
+    val containerWidth = container.width
+    val containerHeight = container.height
+    if (containerWidth <= 0 || containerHeight <= 0) return
+    val containerDar = containerWidth.toDouble() / containerHeight.toDouble()
+    val videoWidth: Int
+    val videoHeight: Int
+    if (dar > containerDar) {
+      videoWidth = containerWidth
+      videoHeight = (containerWidth / dar).toInt()
+    } else {
+      videoWidth = (containerHeight * dar).toInt()
+      videoHeight = containerHeight
+    }
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == videoWidth && params.height == videoHeight) return
+    Log.i(TAG, "MediaCodec embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    params.width = videoWidth
+    params.height = videoHeight
+    params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+    params.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+    params.topToTop = ConstraintLayout.LayoutParams.PARENT_ID
+    params.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+    params.horizontalBias = 0.5f
+    params.verticalBias = 0.5f
+    layoutParams = params
+  }
+
+  /** Drops the embed letterbox from a previous session so gpu/gpu-next gets the full viewport back. */
+  private fun restoreFullSizeEmbedBounds() {
+    lastEmbedAspect = null
+    val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    if (params.width == ViewGroup.LayoutParams.MATCH_PARENT &&
+      params.height == ViewGroup.LayoutParams.MATCH_PARENT
+    ) {
+      return
+    }
+    params.width = ViewGroup.LayoutParams.MATCH_PARENT
+    params.height = ViewGroup.LayoutParams.MATCH_PARENT
+    layoutParams = params
+  }
+
+  /** Recompute the letterbox once the parent settles; no further aspect event arrives for a file. */
+  private val embedRelayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+    if (!isEmbedVoActive() || lastEmbedAspect == null) return@OnGlobalLayoutListener
+    applyEmbedAspectRatioBounds()
+  }
+
+  private var embedRelayoutListenerRegistered = false
+
+  private fun registerEmbedRelayoutListener() {
+    if (embedRelayoutListenerRegistered || !isEmbedVoActive()) return
+    if (!viewTreeObserver.isAlive) return
+    embedRelayoutListenerRegistered = true
+    viewTreeObserver.addOnGlobalLayoutListener(embedRelayoutListener)
+  }
+
+  private fun unregisterEmbedRelayoutListener() {
+    if (!embedRelayoutListenerRegistered) return
+    embedRelayoutListenerRegistered = false
+    if (viewTreeObserver.isAlive) {
+      runCatching { viewTreeObserver.removeOnGlobalLayoutListener(embedRelayoutListener) }
+    }
+  }
+
+  /**
+   * Dolby Vision carries RPU/EL metadata that vo=mediacodec_embed cannot tone-map, so the picture
+   * stays black. mpv 0.42's gpu-next handles DV P7 through libplacebo. Move only the running core
+   * to gpu-next; the next file starts on the embed default again.
+   */
+  fun onDolbyVisionDetected(): Boolean {
+    if (!isMediaCodecEmbedConfigured() || videoOutputMode() != "auto") return false
+    if (!runCatching { decoderPreferences.dolbyVisionAutoSwitch.get() }.getOrDefault(true)) return false
+    if (dolbyVisionFallbackActive || !isEmbedVoActive()) return false
+    dolbyVisionFallbackActive = true
+    Log.i(TAG, "Dolby Vision detected; switching vo=mediacodec_embed -> gpu-next")
+    // Observer callbacks are not guaranteed to run on the main thread.
+    post { switchVideoOutput("gpu-next") }
+    return true
+  }
+
+  /** Called on MPV_EVENT_START_FILE: give every new file the embed default again. */
+  fun onPlaybackItemStarting() {
+    if (!dolbyVisionFallbackActive) return
+    dolbyVisionFallbackActive = false
+    if (isMediaCodecEmbedConfigured()) post { switchVideoOutput("mediacodec_embed") }
+  }
+
+  private fun switchVideoOutput(target: String) {
+    if (PlaybackSession.videoOutput == target) return
+    Log.i(TAG, "Switching video output: ${PlaybackSession.videoOutput} -> $target")
+    if (target != "mediacodec_embed") {
+      unregisterEmbedRelayoutListener()
+      restoreFullSizeEmbedBounds()
+      detachOsdSurfaceIfNeeded()
+    }
+    if (target == "gpu-next") {
+      // The embed core never emitted these; gpu-next needs an explicit Android GL context.
+      PlaybackSession.setOptionString("gpu-api", "opengl")
+      PlaybackSession.setOptionString("gpu-context", "android")
+    }
+    PlaybackSession.setVideoOutput(target)
+    rebindCurrentSurface()
+  }
+
   override fun onRenderSurfaceSizeChanged(
     width: Int,
     height: Int,
@@ -743,11 +1016,24 @@ class MPVView(
         }
       },
     )
+    if (isEmbedVoActive()) {
+      // Force the OSD window to re-associate on every (re)bind. On a second playback the OSD
+      // SurfaceView is still alive, so osdSurfaceAttached would still be true and the sync would
+      // bail, leaving the embed VO opened blind (no OSD window) and the screen black.
+      osdSurfaceAttached = false
+      syncOsdSurfaceAttachment()
+      recoverVideoOutputIfNeeded()
+      // Belt-and-suspenders: re-check shortly after playback is expected to be up.
+      postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+      registerEmbedRelayoutListener()
+    }
   }
 
   override fun onRenderSurfaceDestroyed() {
     cancelSurfaceRecovery()
     cancelPausedFrameRedraw()
+    unregisterEmbedRelayoutListener()
+    restoreFullSizeEmbedBounds()
     surfaceAttachmentGeneration++
     isSurfaceReady = false
     lastRequestedFrameRate = Float.NaN
@@ -846,6 +1132,9 @@ class MPVView(
       "video-params/w" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "video-params/h" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "video-params/rotate" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
+      // mpv 0.42 exposes the detected Dolby Vision profile (0 = not DV). Used to move DV
+      // sources off the direct MediaCodec output, which cannot tone-map DV/RPU metadata.
+      "dolby-vision-profile" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "container-fps" to MPVLib.MpvFormat.MPV_FORMAT_DOUBLE,
       "eof-reached" to MPVLib.MpvFormat.MPV_FORMAT_FLAG,
       "user-data/mpvrx/show_text" to MPVLib.MpvFormat.MPV_FORMAT_STRING,
@@ -1095,6 +1384,19 @@ class MPVView(
     gpuNextEnabled: Boolean,
     vulkanEnabled: Boolean,
   ): RenderBackendSelection {
+
+    // Default for TV builds: vo=mediacodec_embed (HW+ zero-copy) with hwdec=mediacodec.
+    // This used to require a manual `vo=mediacodec_embed` line in mpv.conf; it is now the
+    // built-in default of the "auto" / "embed" video output modes. gpu-next wins when the user
+    // explicitly picks it (or when Dolby Vision triggers the runtime fallback).
+    if (isMediaCodecEmbedConfigured()) {
+      return RenderBackendSelection(
+        vo = "mediacodec_embed",
+        gpuApi = "",
+        gpuContext = "",
+        reason = "MediaCodec embed (HW+ zero-copy) selected by the video output preference",
+      )
+    }
 
     if (anime4kEnabled && gpuNextEnabled && !vulkanEnabled) {
       return RenderBackendSelection(
