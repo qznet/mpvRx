@@ -802,9 +802,22 @@ class MPVView(
     if (!isEmbedVoActive()) return
     if (!isEmbedOsdWindowEnabled()) return
     val surface = view.holder.surface.takeIf { it.isValid } ?: return
-    runCatching { MPVLib.attachOsdSurface(surface) }
-      .onSuccess { diag("osd window attached") }
-      .onFailure { diag("osd window attach failed: ${it.message}") }
+    // Only FongMi's mpv build ships MPVLib.attachOsdSurface(); the standard build has no such
+    // API, so it is called reflectively and simply skipped there.
+    val attached = runCatching {
+      val method = osdAttachMethod ?: return@runCatching false
+      method.invoke(null, surface)
+      true
+    }.getOrDefault(false)
+    diag(if (attached) "osd window attached" else "osd window not attached")
+  }
+
+  private val osdAttachMethod: java.lang.reflect.Method? by lazy {
+    runCatching {
+      MPVLib::class.java.methods.firstOrNull {
+        it.name == "attachOsdSurface" && it.parameterTypes.size == 1
+      }
+    }.getOrNull()
   }
 
   // There is deliberately NO playback-time video-output recovery in this fork any more. Earlier
