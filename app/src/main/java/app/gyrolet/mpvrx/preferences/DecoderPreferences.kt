@@ -19,6 +19,10 @@ class DecoderPreferences(
   preferenceStore: PreferenceStore,
 ) {
   val profile = preferenceStore.getString("mpv_profile", "fast")
+
+  /** Master switch for the zero-copy vo=mediacodec_embed path. Off hands rendering back to the
+   * app's own gpu / gpu-next / Vulkan selection, which is how gpu-next can be tested on the TV. */
+  val mediaCodecEmbed = preferenceStore.getBoolean("mediacodec_embed", true)
   val tryHWDecoding = preferenceStore.getBoolean("try_hw_dec", true)
   val gpuNext = preferenceStore.getBoolean("gpu_next")
   val useVulkan = preferenceStore.getBoolean("use_vulkan", false)

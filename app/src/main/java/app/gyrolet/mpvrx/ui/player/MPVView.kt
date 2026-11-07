@@ -187,8 +187,12 @@ class MPVView(
     // invalidate the very key it is retrying under.
     val requestedBackend = selectRenderBackend(inputs.anime4kEnabled, inputs.gpuNextEnabled, inputs.vulkanCapable)
     val scriptsKey = advancedPreferences.userScriptsConfigurationKey()
+    // The embed switch changes vo outside selectRenderBackend(), so it has to be part of the
+    // core key. Otherwise PlaybackSession reuses the live core and flipping the switch appears
+    // to do nothing until the whole app process is killed.
+    val embedKey = if (isMediaCodecEmbedActive()) "embed" else "renderer"
     val coreConfigurationKey =
-      "${requestedBackend.configurationKey}|conf=${MpvConfigOverridePolicy.configurationKey()}" +
+      "$embedKey|${requestedBackend.configurationKey}|conf=${MpvConfigOverridePolicy.configurationKey()}" +
         "|mpv=${mpvConfigCache.configurationKey()}|scripts=$scriptsKey"
     return PlaybackSession.initialize(
       context = context.applicationContext,
@@ -752,28 +756,16 @@ class MPVView(
   }
 
   /**
-   * The embedded (zero-copy) MediaCodec surface is the default for this TV build. gpu-next on the
-   * 32-bit TCL is not usable, and this build must still work right after a clean install, when
-   * the app's mpv.conf cache is empty. An explicit vo/video-output line in mpv.conf always wins,
-   * so `vo=gpu-next` remains a manual opt-out. This path must NOT emit gpu-api / gpu-context —
-   * they are incompatible with vo=mediacodec_embed and previously caused a black-screen-with-
-   * audio regression.
+   * Master switch for the zero-copy vo=mediacodec_embed path (default ON). Turning it off hands
+   * the renderer back to [selectRenderBackend], so the app's own Use gpu-next / Vulkan options
+   * decide the video output — that is how gpu-next can be A/B tested on the TV. The switch is the
+   * ONLY source of truth: an mpv.conf vo line must not silently override it, because the app
+   * always writes vo via PlaybackSession.setVideoOutput() anyway. Embed must NOT emit gpu-api /
+   * gpu-context — they are incompatible with vo=mediacodec_embed and caused a black-screen
+   * regression in the past.
    */
-  private fun isMediaCodecEmbedActive(): Boolean {
-    val lines = advancedPreferences.mpvConf
-      .get()
-      .lineSequence()
-      .map { it.substringBefore('#').trim() }
-      .toList()
-    val explicitOutput = lines.firstOrNull {
-      it.startsWith("vo=", ignoreCase = true) || it.startsWith("video-output=", ignoreCase = true)
-    }
-    if (explicitOutput != null) {
-      return explicitOutput.equals("vo=mediacodec_embed", ignoreCase = true) ||
-        explicitOutput.equals("video-output=mediacodec_embed", ignoreCase = true)
-    }
-    return true
-  }
+  private fun isMediaCodecEmbedActive(): Boolean =
+    runCatching { decoderPreferences.mediaCodecEmbed.get() }.getOrDefault(true)
 
   private var lastEmbedAspect: Double? = null
 
@@ -1005,6 +997,9 @@ class MPVView(
       postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
       // Re-letterbox to the source DAR once the layout settles (mpv cannot scale the embed output).
       registerEmbedRelayoutListener()
+    } else {
+      // Leaving embed (e.g. to test gpu-next): drop the OSD window the old core may still own.
+      syncOsdSurfaceAttachment()
     }
   }
 
