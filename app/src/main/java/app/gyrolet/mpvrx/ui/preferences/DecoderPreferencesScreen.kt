@@ -144,38 +144,16 @@ object DecoderPreferencesScreen : Screen {
 
               PreferenceDivider()
 
-              // Video output mode. Default "auto" enables vo=mediacodec_embed (HW+ zero-copy)
-              // without requiring a manual mpv.conf entry, and switches to gpu-next for Dolby Vision.
-              val videoOutputMode by preferences.videoOutputMode.collectAsState()
-              ListPreference(
-                modifier = Modifier.settingsSearchTarget(R.string.pref_video_output_title),
-                value = videoOutputMode,
-                onValueChange = { preferences.videoOutputMode.set(it) },
-                values = listOf("auto", "embed", "gpu_next"),
-                valueToText = { mode ->
-                  AnnotatedString(
-                    stringResource(
-                      when (mode) {
-                        "embed" -> R.string.pref_video_output_embed
-                        "gpu_next" -> R.string.pref_video_output_gpu_next
-                        else -> R.string.pref_video_output_auto
-                      },
-                    ),
-                  )
-                },
-                title = { Text(stringResource(R.string.pref_video_output_title)) },
-                summary = { Text(stringResource(R.string.pref_video_output_summary)) },
-              )
-
-              PreferenceDivider()
-
-              val dolbyVisionAutoSwitch by preferences.dolbyVisionAutoSwitch.collectAsState()
+              // Master switch for the direct MediaCodec output. ON (default) forces
+              // vo=mediacodec_embed + hwdec=mediacodec; OFF hands the renderer choice back to
+              // the app's own gpu-next / Vulkan settings below.
+              val mediaCodecEmbed by preferences.mediaCodecEmbed.collectAsState()
               SwitchPreference(
-                modifier = Modifier.settingsSearchTarget(R.string.pref_dolby_auto_switch_title),
-                value = dolbyVisionAutoSwitch,
-                onValueChange = { preferences.dolbyVisionAutoSwitch.set(it) },
-                title = { Text(stringResource(R.string.pref_dolby_auto_switch_title)) },
-                summary = { Text(stringResource(R.string.pref_dolby_auto_switch_summary)) },
+                modifier = Modifier.settingsSearchTarget(R.string.pref_mediacodec_embed_title),
+                value = mediaCodecEmbed,
+                onValueChange = { preferences.mediaCodecEmbed.set(it) },
+                title = { Text(stringResource(R.string.pref_mediacodec_embed_title)) },
+                summary = { Text(stringResource(R.string.pref_mediacodec_embed_summary)) },
               )
 
               PreferenceDivider()

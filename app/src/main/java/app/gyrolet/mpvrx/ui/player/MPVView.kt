@@ -710,15 +710,13 @@ class MPVView(
   private var osdSurfaceReady = false
   private var osdSurfaceAttached = false
 
-  /** True while a Dolby Vision source has moved the running core off the embed VO. */
-  private var dolbyVisionFallbackActive = false
-
-  /** Preference-driven video output mode: "auto" (default), "embed", "gpu_next". */
-  private fun videoOutputMode(): String =
-    runCatching { decoderPreferences.videoOutputMode.get() }.getOrDefault("auto")
-
-  /** Whether the core should be configured with the embedded MediaCodec output. */
-  private fun isMediaCodecEmbedConfigured(): Boolean = videoOutputMode() != "gpu_next"
+  /**
+   * Master switch, ON by default. When off, selectRenderBackend() falls through to the app's
+   * own gpu-next / Vulkan / Anime4K decision chain. There is deliberately no runtime vo switch
+   * (Dolby Vision or otherwise): switching the running core on TV proved unreliable.
+   */
+  private fun isMediaCodecEmbedConfigured(): Boolean =
+    runCatching { decoderPreferences.mediaCodecEmbed.get() }.getOrDefault(true)
 
   /** Whether the running core is currently targeting the embedded output. */
   private fun isEmbedVoActive(): Boolean = PlaybackSession.videoOutput == "mediacodec_embed"
@@ -918,45 +916,10 @@ class MPVView(
     }
   }
 
-  /**
-   * Dolby Vision carries RPU/EL metadata that vo=mediacodec_embed cannot tone-map, so the picture
-   * stays black. mpv 0.42's gpu-next handles DV P7 through libplacebo. Move only the running core
-   * to gpu-next; the next file starts on the embed default again.
-   */
-  fun onDolbyVisionDetected(): Boolean {
-    if (!isMediaCodecEmbedConfigured() || videoOutputMode() != "auto") return false
-    if (!runCatching { decoderPreferences.dolbyVisionAutoSwitch.get() }.getOrDefault(true)) return false
-    if (dolbyVisionFallbackActive || !isEmbedVoActive()) return false
-    dolbyVisionFallbackActive = true
-    Log.i(TAG, "Dolby Vision detected; switching vo=mediacodec_embed -> gpu-next")
-    // Observer callbacks are not guaranteed to run on the main thread.
-    post { switchVideoOutput("gpu-next") }
-    return true
-  }
-
-  /** Called on MPV_EVENT_START_FILE: give every new file the embed default again. */
-  fun onPlaybackItemStarting() {
-    if (!dolbyVisionFallbackActive) return
-    dolbyVisionFallbackActive = false
-    if (isMediaCodecEmbedConfigured()) post { switchVideoOutput("mediacodec_embed") }
-  }
-
-  private fun switchVideoOutput(target: String) {
-    if (PlaybackSession.videoOutput == target) return
-    Log.i(TAG, "Switching video output: ${PlaybackSession.videoOutput} -> $target")
-    if (target != "mediacodec_embed") {
-      unregisterEmbedRelayoutListener()
-      restoreFullSizeEmbedBounds()
-      detachOsdSurfaceIfNeeded()
-    }
-    if (target == "gpu-next") {
-      // The embed core never emitted these; gpu-next needs an explicit Android GL context.
-      PlaybackSession.setOptionString("gpu-api", "opengl")
-      PlaybackSession.setOptionString("gpu-context", "android")
-    }
-    PlaybackSession.setVideoOutput(target)
-    rebindCurrentSurface()
-  }
+  // No runtime video-output switching. The mediaCodecEmbed master switch is resolved once per
+  // core initialization; changing vo mid-playback proved unreliable on TV (black frames after a
+  // seek, gpu-next failing to re-open). Dolby Vision handling is therefore a manual setting choice:
+  // turn this switch off and pick the renderer through the app's own settings.
 
   override fun onRenderSurfaceSizeChanged(
     width: Int,
@@ -1132,9 +1095,6 @@ class MPVView(
       "video-params/w" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "video-params/h" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "video-params/rotate" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
-      // mpv 0.42 exposes the detected Dolby Vision profile (0 = not DV). Used to move DV
-      // sources off the direct MediaCodec output, which cannot tone-map DV/RPU metadata.
-      "dolby-vision-profile" to MPVLib.MpvFormat.MPV_FORMAT_INT64,
       "container-fps" to MPVLib.MpvFormat.MPV_FORMAT_DOUBLE,
       "eof-reached" to MPVLib.MpvFormat.MPV_FORMAT_FLAG,
       "user-data/mpvrx/show_text" to MPVLib.MpvFormat.MPV_FORMAT_STRING,
@@ -1385,16 +1345,15 @@ class MPVView(
     vulkanEnabled: Boolean,
   ): RenderBackendSelection {
 
-    // Default for TV builds: vo=mediacodec_embed (HW+ zero-copy) with hwdec=mediacodec.
-    // This used to require a manual `vo=mediacodec_embed` line in mpv.conf; it is now the
-    // built-in default of the "auto" / "embed" video output modes. gpu-next wins when the user
-    // explicitly picks it (or when Dolby Vision triggers the runtime fallback).
+    // Default for TV builds: vo=mediacodec_embed (HW+ zero-copy) with hwdec=mediacodec,
+    // enabled by the mediaCodecEmbed master switch (ON by default). When it is off, the app's
+    // own gpu-next / Vulkan / Anime4K decision chain below takes over.
     if (isMediaCodecEmbedConfigured()) {
       return RenderBackendSelection(
         vo = "mediacodec_embed",
         gpuApi = "",
         gpuContext = "",
-        reason = "MediaCodec embed (HW+ zero-copy) selected by the video output preference",
+        reason = "MediaCodec embed (HW+ zero-copy) selected by the master embed switch",
       )
     }
 

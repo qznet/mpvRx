@@ -4634,14 +4634,6 @@ class PlayerActivity :
     value: Long,
   ) {
     when (property) {
-      "dolby-vision-profile" -> {
-        // mpv 0.42 reports the detected DV profile (0 = not DV). The direct MediaCodec output
-        // cannot tone-map DV/RPU metadata, so hand these sources to gpu-next.
-        if (!mpvInitialized || player.isExiting || isFinishing) return
-        if (value > 0 && player.onDolbyVisionDetected()) {
-          viewModel.showToast(getString(R.string.player_dv_switch_toast))
-        }
-      }
       "video-params/w",
       "video-params/h",
       -> {
@@ -4919,10 +4911,6 @@ class PlayerActivity :
    */
   internal fun event(eventId: Int) {
     when (eventId) {
-      MPVLib.MpvEvent.MPV_EVENT_START_FILE -> {
-        // Each new file starts on the embed default again; a DV fallback must not leak over.
-        player.onPlaybackItemStarting()
-      }
       MPVLib.MpvEvent.MPV_EVENT_SHUTDOWN -> {
         if (scriptRuntimeRestartPending || isFinishing || isDestroyed || !beginMediaRequest()) return
         mediaLoadJob?.cancel()
@@ -4938,17 +4926,6 @@ class PlayerActivity :
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) restartAfterCoreShutdown()
       }
       MPVLib.MpvEvent.MPV_EVENT_FILE_LOADED -> {
-        // DV fallback: the profile observer can arrive after the first frame, so also probe here.
-        // These are ordinary event-thread reads (the same pattern used throughout file-loaded),
-        // never a synchronous read from inside an observer callback.
-        if (mpvInitialized && !player.isExiting && !isFinishing) {
-          val dvProfile =
-            PlaybackSession.getPropertyInt("dolby-vision-profile")
-              ?: PlaybackSession.getPropertyInt("source-dolby-vision-profile")
-          if (dvProfile != null && dvProfile > 0 && player.onDolbyVisionDetected()) {
-            viewModel.showToast(getString(R.string.player_dv_switch_toast))
-          }
-        }
         val loadGeneration = PlaybackSession.state.value.activeGeneration
         if (!PlaybackSession.isCurrentGeneration(loadGeneration)) return
         val recovery = pendingMediaLoadRecovery

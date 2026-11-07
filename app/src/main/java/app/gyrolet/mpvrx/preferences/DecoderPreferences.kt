@@ -26,14 +26,14 @@ class DecoderPreferences(
   val useVulkan = preferenceStore.getBoolean("use_vulkan", false)
 
   /**
-   * Video output mode. "auto" (default) enables vo=mediacodec_embed (HW+ zero-copy) for normal
-   * streams and falls back to gpu-next for Dolby Vision; "embed" forces the embedded output;
-   * "gpu_next" forces mpv's renderer. Takes effect on the next player/core initialization.
+   * Master switch for the direct MediaCodec video output (HW+ zero-copy), ON by default.
+   * When enabled the core is initialized with vo=mediacodec_embed and hwdec=mediacodec.
+   * When disabled the app's own renderer settings (gpu-next / Vulkan / Anime4K / HDR) take over.
+   * Takes effect on the next player/core initialization. No Dolby Vision auto-switching is done
+   * here: on TV the runtime vo switch proved unreliable, so DV handling is left to the user by
+   * turning this switch off and choosing the renderer in the app's own settings.
    */
-  val videoOutputMode = preferenceStore.getString("video_output_mode", "auto")
-
-  /** In Auto mode, switch to gpu-next when a Dolby Vision stream is detected. */
-  val dolbyVisionAutoSwitch = preferenceStore.getBoolean("dolby_vision_auto_switch", true)
+  val mediaCodecEmbed = preferenceStore.getBoolean("mediacodec_embed", true)
   val hdrScreenOutput = preferenceStore.getBoolean("hdr_screen_output", false)
   val hdrScreenMode = preferenceStore.getEnum("hdr_screen_mode", HdrScreenMode.OFF)
   val lastHdrMode = preferenceStore.getEnum("hdr_last_selected_mode", HdrScreenMode.BT_2020)
