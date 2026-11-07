@@ -841,7 +841,10 @@ class MPVView(
    * black parent show through as letterbox/pillarbox. No-op for every other video output.
    */
   fun applyEmbedAspectRatio(aspect: Double?) {
-    if (!isEmbedVoActive()) return
+    if (!isEmbedVoActive()) {
+      restoreFullSizeEmbedBounds()
+      return
+    }
     // video-params/aspect is unreliable for the embed VO (it often reports the surface/container
     // ratio). Derive the true DAR from cached decoded width/height + rotation instead. Never read
     // mpv synchronously from an observer callback: that blocked the dispatch thread and froze the
@@ -855,7 +858,7 @@ class MPVView(
       // would leave that session blind.
       if (!embedVideoOutputEstablished && PlaybackSession.isSurfaceAttachedTo(this)) {
         embedVideoOutputEstablished = true
-        Log.i(TAG, "mediacodec_embed output established; recovery helpers frozen")
+        Log.w(TAG, "embed output established; recovery helpers frozen")
       }
       lastEmbedAspect = measuredDar
     } else if (lastEmbedAspect == null) {
@@ -878,7 +881,10 @@ class MPVView(
 
   private fun applyEmbedAspectRatioBounds() {
     if (!isEmbedVoActive()) return
-    val dar = lastEmbedAspect ?: return
+    // Always prefer the latest cached decoded size. video-params/aspect reports the container
+    // ratio under the embed VO, so falling back to it would stretch the picture to 16:9.
+    val dar = computeEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 } ?: lastEmbedAspect ?: return
+    if (dar != lastEmbedAspect) lastEmbedAspect = dar
     val container = parent as? ViewGroup ?: return
     val containerWidth = container.width
     val containerHeight = container.height
@@ -894,8 +900,15 @@ class MPVView(
       videoHeight = containerHeight
     }
     val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
+    // Once the output is up, freeze the letterbox rectangle. Re-applying layoutParams during a
+    // seek resizes the SurfaceView and tears down the MediaCodec -> ANativeWindow chain. Only a
+    // genuinely different source DAR (a new file) is allowed to re-layout.
+    if (embedVideoOutputEstablished && params.width > 0 && params.height > 0) {
+      val currentDar = params.width.toDouble() / params.height.toDouble()
+      if (kotlin.math.abs(currentDar - dar) < 0.05) return
+    }
     if (params.width == videoWidth && params.height == videoHeight) return
-    Log.i(TAG, "MediaCodec embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    Log.w(TAG, "embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
     params.width = videoWidth
     params.height = videoHeight
     params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
@@ -954,15 +967,9 @@ class MPVView(
     height: Int,
   ) {
     if (!renderCallbacksEnabled || isExiting) return
-    if (isEmbedVoActive() && embedVideoOutputEstablished) {
-      // android-surface-size is only consumed by mpv's gpu/gpu-next renderer. In embed mode
-      // MediaCodec writes straight into the ANativeWindow, and re-applying this property while a
-      // seek is in flight reconfigures the codec and blanks the frame. Keep the size that was
-      // attached at start-up for the rest of the session (letterboxing stays a pure View change).
-      applyFrameRate()
-      redrawPausedFrame()
-      return
-    }
+    // Keep mpv's android-surface-size in sync for every output, including mediacodec_embed.
+    // Freezing it in an earlier build left the native window at its start-up size, so the
+    // 3840x1608 decoded buffer was scaled into a 1920x1080 view (stretched picture).
     if (!PlaybackSession.resizeSurface(width, height, owner = this)) ensureSurfaceAttached()
     applyFrameRate()
     redrawPausedFrame()
@@ -1017,6 +1024,7 @@ class MPVView(
       },
     )
     if (isEmbedVoActive()) {
+      Log.w(TAG, "embed surface attach: established=$embedVideoOutputEstablished, dar=$lastEmbedAspect")
       if (!embedVideoOutputEstablished) {
         // Start-up: force the OSD window to re-associate on every (re)bind. On a second playback
         // the OSD SurfaceView is still alive, so osdSurfaceAttached would still be true and the
@@ -1039,9 +1047,14 @@ class MPVView(
     cancelSurfaceRecovery()
     cancelPausedFrameRedraw()
     unregisterEmbedRelayoutListener()
-    // A new surface lifetime needs the start-up recovery path again.
+    // A rebuilt Surface needs the start-up recovery path again so the embedded VO can come back.
+    // Do NOT reset the letterbox bounds here: changing layoutParams resizes the SurfaceView,
+    // which can trigger another destroy/create cycle (black frame after a seek), and it also
+    // discards the measured DAR so the picture stays stretched to 16:9.
     embedVideoOutputEstablished = false
-    restoreFullSizeEmbedBounds()
+    val keepBounds = !isExiting && isEmbedVoActive()
+    if (!keepBounds) restoreFullSizeEmbedBounds()
+    Log.w(TAG, "embed surface destroyed; keepBounds=$keepBounds, dar=$lastEmbedAspect")
     surfaceAttachmentGeneration++
     isSurfaceReady = false
     lastRequestedFrameRate = Float.NaN
