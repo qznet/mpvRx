@@ -801,7 +801,13 @@ class MPVView(
     val view = osdSurfaceView ?: return
     if (!isEmbedVoActive()) return
     if (!isEmbedOsdWindowEnabled()) return
-    val surface = view.holder.surface.takeIf { it.isValid } ?: return
+    val surface = view.holder.surface.takeIf { it.isValid }
+    if (surface == null) {
+      // The OSD surface does not exist yet. The video output cannot open without it, so keep
+      // trying for a moment: the player Surface is usually created first.
+      runCatching { postDelayed({ attachOsdWindow() }, 120L) }
+      return
+    }
     // Only FongMi's mpv build ships MPVLib.attachOsdSurface(); the standard build has no such
     // API, so it is called reflectively and simply skipped there.
     val attached = runCatching {
@@ -1080,6 +1086,11 @@ class MPVView(
         renderSurface === surface && surfaceAttachmentGeneration == attachedGeneration
 
     diag("surface attach: ${width}x$height gen=${PlaybackSession.state.value.generation}")
+    // The embed video output can only open when mpv already owns an OSD window (android-osd-wid);
+    // without one it aborts with "No Android OSD Surface is attached for direct MediaCodec
+    // output" and the video layer stays empty. Associate the window BEFORE the surface is bound,
+    // because binding is what makes upstream open the video output.
+    if (isEmbedSessionActive()) attachOsdWindow()
     PlaybackSession.bindSurface(
       surface, width, height, this,
       ownerIsActive = ::isCurrentSurface,
@@ -1087,6 +1098,9 @@ class MPVView(
         if (isCurrentSurface() && PlaybackSession.isRendererReadyFor(this)) notifyRendererReady()
       },
       onRendererFailed = {
+        // Re-associate the OSD window before the retry: the video output may have been opened
+        // while the window was still missing, and it aborts in that case.
+        if (isEmbedSessionActive()) attachOsdWindow()
         if (isCurrentSurface() && retriesRemaining > 0 && windowVisibility == VISIBLE) {
           val retry = Runnable {
             surfaceRecovery = null
