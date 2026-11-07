@@ -752,20 +752,27 @@ class MPVView(
   }
 
   /**
-   * Render via MediaCodec's embedded (zero-copy) surface when the user set
-   * `vo=mediacodec_embed` (or `video-output=...`) in mpv.conf. This path must NOT emit gpu-api /
-   * gpu-context — they are incompatible with vo=mediacodec_embed and previously caused a
-   * black-screen-with-audio regression.
+   * The embedded (zero-copy) MediaCodec surface is the default for this TV build. gpu-next on the
+   * 32-bit TCL is not usable, and this build must still work right after a clean install, when
+   * the app's mpv.conf cache is empty. An explicit vo/video-output line in mpv.conf always wins,
+   * so `vo=gpu-next` remains a manual opt-out. This path must NOT emit gpu-api / gpu-context —
+   * they are incompatible with vo=mediacodec_embed and previously caused a black-screen-with-
+   * audio regression.
    */
   private fun isMediaCodecEmbedActive(): Boolean {
-    return advancedPreferences.mpvConf
+    val lines = advancedPreferences.mpvConf
       .get()
       .lineSequence()
-      .any { raw ->
-        val line = raw.substringBefore('#').trim()
-        line.equals("vo=mediacodec_embed", ignoreCase = true) ||
-          line.equals("video-output=mediacodec_embed", ignoreCase = true)
-      }
+      .map { it.substringBefore('#').trim() }
+      .toList()
+    val explicitOutput = lines.firstOrNull {
+      it.startsWith("vo=", ignoreCase = true) || it.startsWith("video-output=", ignoreCase = true)
+    }
+    if (explicitOutput != null) {
+      return explicitOutput.equals("vo=mediacodec_embed", ignoreCase = true) ||
+        explicitOutput.equals("video-output=mediacodec_embed", ignoreCase = true)
+    }
+    return true
   }
 
   private var lastEmbedAspect: Double? = null
