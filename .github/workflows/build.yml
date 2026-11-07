@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -18,9 +20,14 @@ on:
           - dual
           - fongmi
           - no_vulkan
+      full:
+        description: 'Release build: package v7a + arm64 instead of the thin v7a APK'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -28,6 +35,7 @@ concurrency:
 
 env:
   SELECTED_FLAVOR: ${{ inputs.build_flavor || 'fongmi' }}
+  FULL_BUILD: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.full }}
 
 jobs:
   build:
@@ -67,7 +75,10 @@ jobs:
             ./gradlew assembleStandardRelease --stacktrace --no-daemon --max-workers=2
           fi
           if [[ "$SELECTED_FLAVOR" == "all" || "$SELECTED_FLAVOR" == "dual" || "$SELECTED_FLAVOR" == "fongmi" ]]; then
-            if [[ "$SELECTED_FLAVOR" == "fongmi" ]]; then
+            if [[ "$SELECTED_FLAVOR" == "fongmi" && "$FULL_BUILD" == "true" ]]; then
+              # Tagged stable release: one universal APK carrying both v7a and arm64.
+              ./gradlew assembleFongmiRelease -PtargetAbi=arm64-v8a,armeabi-v7a --stacktrace --no-daemon --max-workers=2
+            elif [[ "$SELECTED_FLAVOR" == "fongmi" ]]; then
               # Dedicated fongmi build: pure armeabi-v7a thin APK (no universal, no other ABIs).
               ./gradlew assembleFongmiRelease -PtargetAbi=armeabi-v7a --stacktrace --no-daemon --max-workers=2
             else
@@ -278,3 +289,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+      - name: Publish tagged stable release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/fongmi/release/app-fongmi-universal-release.apk"
+          test -f "$apk"
+          asset="mpvRx-${GITHUB_REF_NAME}-fongmi-v7a-arm64.apk"
+          cp "$apk" "$asset"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$asset" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$asset" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "mpvRx ${GITHUB_REF_NAME} (MediaCodec embed TV)" \
+              --generate-notes \
+              --verify-tag
+          fi
