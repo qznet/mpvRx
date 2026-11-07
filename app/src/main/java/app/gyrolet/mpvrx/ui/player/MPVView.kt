@@ -616,6 +616,12 @@ class MPVView(
   }
 
   fun applyStartupStatistics() {
+    // TV safety net: stats.lua repaints its ASS OSD once per second. On a 30Hz Mali-G52 that
+    // alone eats half the frame budget and makes gpu-next loop the first 1-2 seconds. Never
+    // auto-restore a statistics page on a TV; the user can still open one manually for the
+    // current session (e.g. to check vo/hwdec).
+    val uiMode = context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
+    if (uiMode == Configuration.UI_MODE_TYPE_TELEVISION) return
     // The native core survives Activity recreation and playlist loads. A toggle on every
     // load would turn an already enabled statistics overlay off on the next file.
     if (PlaybackSession.getPropertyString("user-data/mpvrx/startup-stats-applied") == "yes") return
@@ -716,8 +722,14 @@ class MPVView(
     )
   }
 
-  /** Attaches/detaches the OSD window to match the currently active video output. */
-  fun syncOsdSurfaceAttachment() {
+  /**
+   * Attaches/detaches the OSD window to match the currently active video output.
+   *
+   * [reopenOutput] is false when this runs *before* [PlaybackSession.bindSurface]: the OSD
+   * ANativeWindow must already exist when fongmi opens vo=mediacodec_embed, but there is no
+   * wid/VO to reopen at that point (and toggling vo there would fight the pending bind).
+   */
+  fun syncOsdSurfaceAttachment(reopenOutput: Boolean = true) {
     val view = osdSurfaceView ?: return
     if (!isMediaCodecEmbedActive()) {
       if (!osdSurfaceAttached) return
@@ -731,8 +743,9 @@ class MPVView(
       .onSuccess {
         osdSurfaceAttached = true
         // The VO may have been opened before the OSD window existed, in which case mpv gave up on
-        // the video track; reopen it so the picture actually comes back.
-        reopenEmbedVideoOutput()
+        // the video track; reopen it so the picture actually comes back. Skipped for the
+        // pre-bind attachment, where no VO exists yet to reopen.
+        if (reopenOutput) reopenEmbedVideoOutput()
       }
       .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
   }
@@ -998,10 +1011,20 @@ class MPVView(
     isSurfaceReady = false
     surfaceAttachmentGeneration++
     val attachedGeneration = surfaceAttachmentGeneration
+    val embedActive = isMediaCodecEmbedActive()
 
     fun isCurrentSurface(): Boolean =
       !isExiting && surfaceBindingEnabled && renderCallbacksEnabled && surface.isValid &&
         renderSurface === surface && surfaceAttachmentGeneration == attachedGeneration
+
+    if (embedActive) {
+      // fongmi's vo=mediacodec_embed needs android-osd-wid AT THE MOMENT the VO opens.
+      // Upstream 1.1.7 opens vo asynchronously from bindSurface()'s nativeEvents job, so
+      // attaching the OSD window afterwards is too late: mpv aborts the video output and
+      // deselects the video track. Force a fresh pre-bind attachment (no vo toggle here).
+      osdSurfaceAttached = false
+      syncOsdSurfaceAttachment(reopenOutput = false)
+    }
 
     PlaybackSession.bindSurface(
       surface, width, height, this,
@@ -1024,14 +1047,12 @@ class MPVView(
           postDelayed(retry, SURFACE_RETRY_MS)
         }
       },
+      embeddedVideoOutput = embedActive,
     )
-    if (isMediaCodecEmbedActive()) {
-      // Force the OSD window to re-associate on every (re)bind. On a second playback the OSD surface
-      // view is still alive, so osdSurfaceAttached is left true from before and syncOsdSurfaceAttachment()
-      // would bail — leaving the embed VO opened blind (no OSD window) and the screen black. Resetting
-      // it here makes the re-sync actually run and re-open vo=mediacodec_embed with the OSD attached.
-      osdSurfaceAttached = false
-      syncOsdSurfaceAttachment()
+    if (embedActive) {
+      // Keep the 10/26 safety net: if the embed VO never produced a decoded frame, reopen it
+      // with the OSD window now attached. The relaxed bind above stops this from tearing down
+      // a healthy zero-copy chain on every seek.
       recoverVideoOutputIfNeeded()
       // Belt-and-suspenders: re-check shortly after playback is expected to be up.
       postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)

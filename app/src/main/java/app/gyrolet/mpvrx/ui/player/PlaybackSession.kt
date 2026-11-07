@@ -543,6 +543,7 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
     ownerIsActive: () -> Boolean = { true },
     onRendererReady: (() -> Unit)? = null,
     onRendererFailed: (() -> Unit)? = null,
+    embeddedVideoOutput: Boolean = false,
   ): Boolean =
     withCore(default = false) {
       if (!ownerIsActive() || !surface.isValid) {
@@ -552,10 +553,25 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
 
       val targetWidth = width?.takeIf { it > 0 } ?: return@withCore false
       val targetHeight = height?.takeIf { it > 0 } ?: return@withCore false
+      // Mini player / external-display handoffs call bindSurface() without the explicit flag,
+      // so derive it from the configured output as well. Once the core is on embed, EVERY bind
+      // must avoid the teardown, not just the full-player one.
+      val embedded = embeddedVideoOutput || desiredVideoOutput == "mediacodec_embed"
       // Both vo and wid changes seek the whole file when a video track is selected. Finish
       // deselecting video before either changes, including direct fullscreen/mini-player handoffs.
       // AudioTrack and its clock stay running while the video decoder/output are replaced.
-      detachRendererSurfaceLocked()
+      //
+      // vo=mediacodec_embed is different: MediaCodec writes decoded frames straight into the
+      // ANativeWindow and fongmi's build also requires android-osd-wid. Upstream's unconditional
+      // teardown (vid=no / vo=null / detachSurface) destroys that live zero-copy chain on every
+      // rebind, which is exactly what a seek can trigger. Restore the 10/26 verified behaviour
+      // for the embedded path only, leaving GPU backends on the new handoff logic.
+      if (embedded) {
+        if (_state.value.surfaceAttached) detachRendererSurfaceLocked()
+        rendererOutputReady = false
+      } else {
+        detachRendererSurfaceLocked()
+      }
       val token = ++surfaceAttachmentToken
       MPVLib.attachSurface(surface)
       MPVLib.setPropertyString("android-surface-size", "${targetWidth}x$targetHeight")
@@ -593,7 +609,13 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
                 MPVLib.setPropertyString("force-window", "yes")
                 // Read back the actual output, not just the requested option. Video selection
                 // must be the final step, after JNI's window and the new output are usable.
-                if (MPVLib.getPropertyString("current-vo") != desiredVideoOutput) return@withLock false
+                // fongmi's mediacodec_embed does not reliably report current-vo while the OSD
+                // ANativeWindow is being associated; a strict readback declares a perfectly
+                // healthy zero-copy output dead after ~4.8s and detaches it (black screen).
+                // For the embedded path only the wid check above gates readiness.
+                if (!embedded &&
+                  MPVLib.getPropertyString("current-vo") != desiredVideoOutput
+                ) return@withLock false
                 rendererOutputReady = true
                 restoreSuspendedVideoTrackLocked()
                 applyDeferredVideoSelectionLocked()
@@ -705,7 +727,11 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
   /** A retained VO can redraw its current frame without seeking or touching audio buffers. */
   fun redrawVideoFrame() {
     withCore(Unit) {
-      if (rendererOutputReady) MPVLib.command("osd-overlay", "2147483647", "ass-events", "")
+      // An ASS osd-overlay forces a full OSD repaint. mediacodec_embed has no GL pass to repaint
+      // into, so on a slow TV GPU this only stalls the direct MediaCodec presentation.
+      if (rendererOutputReady && desiredVideoOutput != "mediacodec_embed") {
+        MPVLib.command("osd-overlay", "2147483647", "ass-events", "")
+      }
     }
   }
 
