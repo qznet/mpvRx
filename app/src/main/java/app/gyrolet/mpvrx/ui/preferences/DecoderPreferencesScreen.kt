@@ -158,6 +158,21 @@ object DecoderPreferencesScreen : Screen {
 
               PreferenceDivider()
 
+              // The embed output cannot draw subtitles into the video surface, so mpv needs a
+              // second window for them. Switching it off makes the embed output behave exactly
+              // like upstream's (no subtitles, nothing extra attached to the video surface).
+              val embedOsdWindow by preferences.embedOsdWindow.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_embed_osd_window_title),
+                value = embedOsdWindow,
+                enabled = mediaCodecEmbed,
+                onValueChange = { preferences.embedOsdWindow.set(it) },
+                title = { Text(stringResource(R.string.pref_embed_osd_window_title)) },
+                summary = { Text(stringResource(R.string.pref_embed_osd_window_summary)) },
+              )
+
+              PreferenceDivider()
+
               val tryHWDecoding by preferences.tryHWDecoding.collectAsState()
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_decoder_try_hw_dec_title),

@@ -3123,6 +3123,8 @@
   <!-- Direct MediaCodec output master switch (HW+ zero-copy) -->
   <string name="pref_mediacodec_embed_title">MediaCodec embed + mediacodec (HW+)</string>
   <string name="pref_mediacodec_embed_summary">On by default. Enables vo=mediacodec_embed and hwdec=mediacodec. Turn it off to let the built-in renderer settings choose gpu-next or Vulkan. Applies on the next playback.</string>
+  <string name="pref_embed_osd_window_title">Embed subtitle window</string>
+  <string name="pref_embed_osd_window_summary">MediaCodec embed cannot draw subtitles into the video surface, so mpv needs a second window for them. Turn it off for the plain upstream behaviour (no subtitles, nothing extra attached to the video surface). Applies on the next playback.</string>
   <string name="player_speed_toast_format">Speed %1$sx</string>
 </resources>
 

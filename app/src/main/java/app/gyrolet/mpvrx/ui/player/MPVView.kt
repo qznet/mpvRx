@@ -768,6 +768,11 @@ class MPVView(
   fun setOsdSurfaceView(surfaceView: SurfaceView) {
     if (osdSurfaceView === surfaceView) return
     osdSurfaceView = surfaceView
+    if (!isEmbedOsdWindowEnabled()) {
+      // Exactly upstream's behaviour: nothing extra is attached to the video surface.
+      diag("osd window disabled by the user")
+      return
+    }
     surfaceView.holder.setFormat(PixelFormat.TRANSPARENT)
     surfaceView.setZOrderMediaOverlay(true)
     surfaceView.holder.addCallback(
@@ -783,6 +788,10 @@ class MPVView(
     )
   }
 
+  /** Whether the embed output gets its own OSD window (android-osd-wid) for subtitles/OSC. */
+  private fun isEmbedOsdWindowEnabled(): Boolean =
+    runCatching { decoderPreferences.embedOsdWindow.get() }.getOrDefault(true)
+
   /**
    * Associates mpv's OSD window with the current OSD Surface. This is idempotent and never touches
    * the video output, so it is safe to call whenever the player Surface is (re)bound: the embed
@@ -791,6 +800,7 @@ class MPVView(
   private fun attachOsdWindow() {
     val view = osdSurfaceView ?: return
     if (!isEmbedVoActive()) return
+    if (!isEmbedOsdWindowEnabled()) return
     val surface = view.holder.surface.takeIf { it.isValid } ?: return
     runCatching { MPVLib.attachOsdSurface(surface) }
       .onSuccess { diag("osd window attached") }
