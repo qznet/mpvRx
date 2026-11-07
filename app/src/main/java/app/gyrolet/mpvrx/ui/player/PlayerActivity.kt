@@ -7178,7 +7178,15 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
     // Intentionally NOT calling viewModel.showControls() here: on Android TV, showing the controls
     // also forces the system status/navigation bars + the full control bar to pop up, which covers
     // the video and interferes with continuous speed scrubbing. UP/DOWN only surface the speed value.
-    viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+    // Use the platform Toast on purpose: the newer AppToast component (picked up while following
+    // upstream) draws an info glyph inside a light rounded pill with a bright outline, which is
+    // intrusive over a dark fullscreen picture. Older builds showed a plain text toast only.
+    android.widget.Toast
+      .makeText(
+        this,
+        getString(R.string.player_speed_toast_format, "%.2f".format(next)),
+        android.widget.Toast.LENGTH_SHORT,
+      ).show()
   }
 
   @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
