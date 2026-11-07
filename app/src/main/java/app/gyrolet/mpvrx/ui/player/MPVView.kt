@@ -711,6 +711,15 @@ class MPVView(
   private var osdSurfaceAttached = false
 
   /**
+   * Set once the embedded output has reported real decoded video params (i.e. the picture is up).
+   * Every helper below is a *start-up* safety net. Once playback is established, re-opening vo,
+   * re-selecting vid, re-attaching the OSD window or re-applying the renderer surface size during
+   * a seek tears down the MediaCodec -> ANativeWindow chain and leaves a black frame on TV.
+   * Upstream has none of these helpers and seeks fine, so freeze them for the rest of the session.
+   */
+  private var embedVideoOutputEstablished = false
+
+  /**
    * Master switch, ON by default. When off, selectRenderBackend() falls through to the app's
    * own gpu-next / Vulkan / Anime4K decision chain. There is deliberately no runtime vo switch
    * (Dolby Vision or otherwise): switching the running core on TV proved unreliable.
@@ -770,9 +779,10 @@ class MPVView(
     runCatching { MPVLib.attachOsdSurface(surface) }
       .onSuccess {
         osdSurfaceAttached = true
-        // The VO may have been opened before the OSD window existed, in which case mpv gave up on
-        // the video track; reopen it so the picture actually comes back.
-        reopenEmbedVideoOutput()
+        // Start-up only: the VO may have been opened before the OSD window existed, in which case
+        // mpv gave up on the video track; reopen it so the picture actually comes back. Doing this
+        // on a later (re)bind would kill an output that is already playing.
+        if (!embedVideoOutputEstablished) reopenEmbedVideoOutput()
       }
       .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
   }
@@ -810,8 +820,11 @@ class MPVView(
     runCatching { MPVLib.setPropertyString("vid", "auto") }
   }
 
-  /** Safety net: bring the picture back if vo=mediacodec_embed never came up. */
+  /** Start-up safety net: bring the picture back if vo=mediacodec_embed never came up. */
   fun recoverVideoOutputIfNeeded() {
+    // During a seek mpv briefly clears video-params; the old unconditional probe mistook that for
+    // a dead VO and rebuilt it mid-playback, which is the "seek -> black screen" regression.
+    if (embedVideoOutputEstablished) return
     if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
     if (isEmbedVoActive() && osdSurfaceView != null && !osdSurfaceReady) return
     if (!isEmbedVoActive()) return
@@ -833,9 +846,24 @@ class MPVView(
     // ratio). Derive the true DAR from cached decoded width/height + rotation instead. Never read
     // mpv synchronously from an observer callback: that blocked the dispatch thread and froze the
     // UI in an earlier build.
-    val dar = computeEmbedDisplayAspect() ?: aspect?.takeIf { it > 0.0 }
-    val safeDar = dar?.takeIf { it in 0.2..5.0 }
-    if (safeDar != null) lastEmbedAspect = safeDar
+    val measuredDar = computeEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 }
+    if (measuredDar != null) {
+      // Real decoded params arrived -> the embedded output is up. Freeze the start-up recovery
+      // helpers from here on (see embedVideoOutputEstablished).
+      // Require a bound Surface as well: on a second playback the cached video params can still
+      // be present before the SurfaceView is attached, and freezing the start-up recovery then
+      // would leave that session blind.
+      if (!embedVideoOutputEstablished && PlaybackSession.isSurfaceAttachedTo(this)) {
+        embedVideoOutputEstablished = true
+        Log.i(TAG, "mediacodec_embed output established; recovery helpers frozen")
+      }
+      lastEmbedAspect = measuredDar
+    } else if (lastEmbedAspect == null) {
+      // Only a first-frame fallback. A seek briefly empties the cached decoded size while
+      // video-params/aspect may report the container ratio; letting that overwrite a measured
+      // DAR would resize the SurfaceView (and reconfigure MediaCodec) in the middle of playback.
+      lastEmbedAspect = aspect?.takeIf { it in 0.2..5.0 }
+    }
     applyEmbedAspectRatioBounds()
   }
 
@@ -926,6 +954,15 @@ class MPVView(
     height: Int,
   ) {
     if (!renderCallbacksEnabled || isExiting) return
+    if (isEmbedVoActive() && embedVideoOutputEstablished) {
+      // android-surface-size is only consumed by mpv's gpu/gpu-next renderer. In embed mode
+      // MediaCodec writes straight into the ANativeWindow, and re-applying this property while a
+      // seek is in flight reconfigures the codec and blanks the frame. Keep the size that was
+      // attached at start-up for the rest of the session (letterboxing stays a pure View change).
+      applyFrameRate()
+      redrawPausedFrame()
+      return
+    }
     if (!PlaybackSession.resizeSurface(width, height, owner = this)) ensureSurfaceAttached()
     applyFrameRate()
     redrawPausedFrame()
@@ -980,14 +1017,20 @@ class MPVView(
       },
     )
     if (isEmbedVoActive()) {
-      // Force the OSD window to re-associate on every (re)bind. On a second playback the OSD
-      // SurfaceView is still alive, so osdSurfaceAttached would still be true and the sync would
-      // bail, leaving the embed VO opened blind (no OSD window) and the screen black.
-      osdSurfaceAttached = false
-      syncOsdSurfaceAttachment()
-      recoverVideoOutputIfNeeded()
-      // Belt-and-suspenders: re-check shortly after playback is expected to be up.
-      postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+      if (!embedVideoOutputEstablished) {
+        // Start-up: force the OSD window to re-associate on every (re)bind. On a second playback
+        // the OSD SurfaceView is still alive, so osdSurfaceAttached would still be true and the
+        // sync would bail, leaving the embed VO opened blind (no OSD window) and the screen black.
+        osdSurfaceAttached = false
+        syncOsdSurfaceAttachment()
+        recoverVideoOutputIfNeeded()
+        // Belt-and-suspenders: re-check shortly after playback is expected to be up.
+        postDelayed({ recoverVideoOutputIfNeeded() }, 1000L)
+      } else {
+        // Already playing: only keep the OSD window associated. Never rebuild vo/vid here - a
+        // seek-triggered rebind used to tear down a healthy MediaCodec output (black screen).
+        syncOsdSurfaceAttachment()
+      }
       registerEmbedRelayoutListener()
     }
   }
@@ -996,6 +1039,8 @@ class MPVView(
     cancelSurfaceRecovery()
     cancelPausedFrameRedraw()
     unregisterEmbedRelayoutListener()
+    // A new surface lifetime needs the start-up recovery path again.
+    embedVideoOutputEstablished = false
     restoreFullSizeEmbedBounds()
     surfaceAttachmentGeneration++
     isSurfaceReady = false
