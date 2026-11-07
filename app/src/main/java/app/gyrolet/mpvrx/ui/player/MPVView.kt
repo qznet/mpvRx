@@ -630,6 +630,17 @@ class MPVView(
     PlaybackSession.setOptionString("osd-margin-x", DEFAULT_OSD_SAFE_MARGIN.toString())
     PlaybackSession.setOptionString("osd-margin-y", DEFAULT_OSD_SAFE_MARGIN.toString())
 
+    // This TV ROM filters logcat completely, so let mpv write its own log where adb can pull it.
+    // The embed video output only ever renders into a MediaCodec surface, and its failures are
+    // invisible from the app side.
+    if (isMediaCodecEmbedConfigured()) {
+      val dir = java.io.File("/sdcard/mpv").takeIf { it.isDirectory } ?: context.getExternalFilesDir(null)
+      val logFile = java.io.File(dir, "mpvRx_mpv.log")
+      runCatching { MPVLib.setPropertyString("log-file", logFile.absolutePath) }
+        .onFailure { Log.w(TAG, "Could not enable the mpv log file", it) }
+      runCatching { MPVLib.setPropertyString("msg-level", "all=warn,vo=debug") }
+    }
+
     // libmpv is initialized here, but no file has been loaded yet. Unlike initOptions(),
     // it is safe to run change-list and shader property commands here.
     pendingStartupShaders?.let { selection ->
@@ -672,6 +683,8 @@ class MPVView(
     const val DEFAULT_OSD_SAFE_MARGIN = 16
     const val SURFACE_RETRY_MS = 250L
     const val SURFACE_READY_TIMEOUT_MS = 5_000L
+    /** Keep the letterbox rectangle when it is already within this many pixels of the target. */
+    const val EMBED_BOUNDS_TOLERANCE_PX = 8
 
     /**
      * DAR that last produced a correct embed letterbox rectangle. A second playback reuses the
@@ -857,6 +870,12 @@ class MPVView(
     // video layer. Only a new file generation may recompute it - that covers "exit and play the
     // same video again", where the core is reused and video-params/aspect never fires again.
     if (embedBoundsApplied && generation == embedBoundsGeneration) return
+    if (isInLayout) {
+      // The framework drops layoutParams changes made during a layout pass. Retry on the next
+      // frame instead of silently losing the letterbox (that is what left the picture stretched).
+      post { applyEmbedAspectRatioBounds(allowDirectRead) }
+      return
+    }
     // Prefer the latest cached decoded size; video-params/aspect reports the container ratio under
     // the embed VO. On a second playback the cache is empty, so fall back to a direct read (only
     // allowed outside mpv's event thread) and finally to the DAR that last produced a correct
@@ -888,12 +907,17 @@ class MPVView(
       videoHeight = containerHeight
     }
     val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
-    if (params.width == videoWidth && params.height == videoHeight) {
+    // The decoded size wobbles by a pixel or two between frames (3840x1608 vs 3840x1600). Every
+    // re-layout rebuilds the SurfaceView, and with it the MediaCodec output, so keep the existing
+    // rectangle when it is already within a few pixels of the target.
+    if (kotlin.math.abs(params.width - videoWidth) <= EMBED_BOUNDS_TOLERANCE_PX &&
+      kotlin.math.abs(params.height - videoHeight) <= EMBED_BOUNDS_TOLERANCE_PX
+    ) {
       commitEmbedBounds(dar, generation)
-      diag("letterbox: already ${videoWidth}x$videoHeight (dar=$dar)")
+      diag("letterbox: keep ${params.width}x${params.height} (dar=$dar)")
       return
     }
-    diag("letterbox: apply dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    diag("letterbox: apply dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight (view=${width}x$height)")
     params.width = videoWidth
     params.height = videoHeight
     params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
