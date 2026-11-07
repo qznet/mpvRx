@@ -44,6 +44,31 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!--
+      App-drawn subtitles for vo=mediacodec_embed. The standard kernel has no OSD window, so mpv
+      cannot paint subtitles itself; PlayerActivity feeds this view from the sub-text property.
+      Kept above the controls and non-interactive so remote keys still reach the player.
+    -->
+    <TextView
+        android:id="@+id/embed_subtitle"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:gravity="bottom|center_horizontal"
+        android:importantForAccessibility="no"
+        android:maxLines="5"
+        android:shadowColor="#FF000000"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="6"
+        android:textColor="#FFFFFFFF"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <!-- App-drawn status-bar protection works with transparent system bars on Android 15+. -->
     <View
         android:id="@+id/status_bar_scrim"

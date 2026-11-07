@@ -24,6 +24,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Typeface
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -41,6 +42,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.util.Log
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -1315,6 +1317,75 @@ class PlayerActivity :
    * An input arriving inside that one-frame window is not lost: every tap and key path already sets
    * `viewModel.controlsShown`, which the tree reads when it mounts, so the controls still appear.
    */
+  // ---- App-drawn subtitles for vo=mediacodec_embed -----------------------------------------
+  // The standard kernel exposes no android-osd-wid / attachOsdSurface(), and MediaCodec writes
+  // frames straight into the ANativeWindow, so mpv has nowhere to paint subtitles. The subtitle
+  // decoder still produces sub-text, so the app draws it as a plain TextView over the video.
+  // Graphics subtitles (PGS / VobSub) have no text and are not supported in this mode.
+  private var embedSubtitlePollJob: Job? = null
+  private var embedSubtitleObserverWorks = false
+  private var embedSubtitleLogged = false
+  private var embedSubtitlePollLogged = false
+  private var embedSubtitleObserverLogged = false
+  private var lastEmbedSubtitle = ""
+
+  private fun updateEmbedSubtitle(raw: String?) {
+    val overlay = binding.embedSubtitle
+    val embedOn = runCatching { decoderPreferences.mediaCodecEmbed.get() }.getOrDefault(true)
+    val text = raw.orEmpty()
+      .replace(Regex("\\{[^}]*\\}"), "")
+      .replace("\\N", "\n")
+      .replace("\\n", "\n")
+      .trim()
+    if (!embedOn || text.isEmpty()) {
+      if (lastEmbedSubtitle.isNotEmpty()) {
+        lastEmbedSubtitle = ""
+        overlay.text = ""
+        overlay.visibility = View.GONE
+      }
+      return
+    }
+    if (text == lastEmbedSubtitle) return
+    lastEmbedSubtitle = text
+    val h = overlay.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+    val fontSizePx =
+      subtitlesPreferences.fontSize.get() * subtitlesPreferences.subScale.get() * (h / 720f)
+    overlay.setTextSize(TypedValue.COMPLEX_UNIT_PX, fontSizePx.coerceIn(22f, 130f))
+    overlay.setTextColor(subtitlesPreferences.textColor.get())
+    overlay.setTypeface(
+      null,
+      if (subtitlesPreferences.bold.get()) Typeface.BOLD else Typeface.NORMAL,
+    )
+    val position = subtitlesPreferences.subPos.get().coerceIn(0, 100)
+    val bottomPadding = ((100 - position) / 100f * h).toInt() + (h * 0.025f).toInt()
+    val sidePadding = (h * 0.07f).toInt()
+    overlay.setPadding(sidePadding, 0, sidePadding, bottomPadding)
+    overlay.text = text
+    overlay.visibility = View.VISIBLE
+    if (!embedSubtitleLogged) {
+      embedSubtitleLogged = true
+      player.logDiag("embed subtitle overlay: text received")
+    }
+  }
+
+  /** Fallback for kernels that do not emit sub-text changes under the embed video output. */
+  private fun startEmbedSubtitlePolling() {
+    if (embedSubtitlePollJob?.isActive == true) return
+    embedSubtitlePollJob = lifecycleScope.launch(Dispatchers.IO) {
+      delay(1_500L)
+      while (isActive && !embedSubtitleObserverWorks) {
+        if (!runCatching { decoderPreferences.mediaCodecEmbed.get() }.getOrDefault(true)) break
+        val text = runCatching { PlaybackSession.getPropertyString("sub-text") }.getOrNull()
+        if (!embedSubtitlePollLogged) {
+          embedSubtitlePollLogged = true
+          player.logDiag("embed subtitle poll: sub-text='${text.orEmpty().take(40)}'")
+        }
+        withContext(Dispatchers.Main) { updateEmbedSubtitle(text) }
+        delay(300L)
+      }
+    }
+  }
+
   private fun setupPlayerControls(ready: Boolean = true) {
     if (ready && !playerControlsReady) {
       playerControlsReady = true
@@ -1373,6 +1444,9 @@ class PlayerActivity :
     } else {
       binding.controls.postOnAnimation { composeControls() }
     }
+    // Only used while vo=mediacodec_embed is active; stops itself as soon as sub-text events
+    // arrive, so the normal gpu/gpu-next path has no extra work.
+    startEmbedSubtitlePolling()
   }
 
   private fun setupVideoAmbientBackground() {
@@ -4637,6 +4711,9 @@ class PlayerActivity :
       -> {
         // Safety check: don't access MPV during cleanup
         if (!mpvInitialized || player.isExiting || isFinishing) return
+        // The decoded size is the only trustworthy DAR source under vo=mediacodec_embed and can
+        // arrive after the first Surface bind. Post to the UI thread before touching layoutParams.
+        player.post { player.applyEmbedAspectRatio(null) }
         scheduleVideoParamRefresh(reloadShaders = true)
       }
     }
@@ -4795,6 +4872,15 @@ class PlayerActivity :
   ) {
     when (property) {
       "sub-text" -> {
+        // The standard kernel's vo=mediacodec_embed has no OSD window, so mpv has nowhere to
+        // paint subtitles. Render the decoded text in the app's own overlay instead.
+        embedSubtitleObserverWorks = true
+        embedSubtitlePollJob?.cancel()
+        if (!embedSubtitleObserverLogged) {
+          embedSubtitleObserverLogged = true
+          player.logDiag("embed subtitle observer fired: '${value.take(40)}'")
+        }
+        updateEmbedSubtitle(value)
         if (isSecondarySubtitleActive()) {
           val primaryPosition = subtitlesPreferences.subPos.get()
           applySubtitlePositions(primaryPosition)
