@@ -3122,7 +3122,7 @@
   <string name="theme_color_tertiary">Highlight accent</string>
   <!-- Direct MediaCodec output master switch (HW+ zero-copy) -->
   <string name="pref_mediacodec_embed_title">MediaCodec embed + mediacodec (HW+)</string>
-  <string name="pref_mediacodec_embed_summary">On (default): vo=mediacodec_embed and hwdec=mediacodec. Off: use the app's own renderer settings (gpu-next / Vulkan). Takes effect on the next playback.</string>
+  <string name="pref_mediacodec_embed_summary">On by default. Enables vo=mediacodec_embed and hwdec=mediacodec. Turn it off to let the built-in renderer settings choose gpu-next or Vulkan. Applies on the next playback.</string>
   <string name="player_speed_toast_format">Speed %1$sx</string>
 </resources>
 
