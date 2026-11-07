@@ -615,6 +615,13 @@ class MPVView(
 
   private fun observeProperties() {
     for ((name, format) in observedProps) PlaybackSession.observeProperty(name, format)
+    // Pre-warm the decoded-size caches here, OUTSIDE mpv's event dispatch. The first read of a
+    // property cache reads mpv synchronously; doing that inside an observer callback blocked the
+    // dispatch thread and froze the whole UI in an earlier build. After this the observer path
+    // only ever touches the cached values.
+    PlaybackSession.propInt["video-params/w"]
+    PlaybackSession.propInt["video-params/h"]
+    PlaybackSession.propInt["video-params/rotate"]
   }
 
   private fun postInitOptions() {
