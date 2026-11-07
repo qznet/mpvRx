@@ -716,17 +716,6 @@ class MPVView(
   // ==================== vo=mediacodec_embed (HW+ zero-copy) support ====================
 
   private var osdSurfaceView: SurfaceView? = null
-  private var osdSurfaceReady = false
-  private var osdSurfaceAttached = false
-
-  /**
-   * Set once the embedded output has reported real decoded video params (i.e. the picture is up).
-   * Every helper below is a *start-up* safety net. Once playback is established, re-opening vo,
-   * re-selecting vid, re-attaching the OSD window or re-applying the renderer surface size during
-   * a seek tears down the MediaCodec -> ANativeWindow chain and leaves a black frame on TV.
-   * Upstream has none of these helpers and seeks fine, so freeze them for the rest of the session.
-   */
-  private var embedVideoOutputEstablished = false
 
   /**
    * Master switch, ON by default. When off, selectRenderBackend() falls through to the app's
@@ -743,7 +732,7 @@ class MPVView(
    * The master switch is ON for the whole session, but PlaybackSession.videoOutput is only
    * published after the core has been configured. Surface callbacks can run before that, so gate
    * layout work on the configured session too - otherwise the letterbox is skipped on a second
-   * playback and the 1920x800 MediaCodec buffer is stretched into a 1920x1080 view.
+   * playback and the MediaCodec buffer is stretched into the full viewport.
    */
   private fun isEmbedSessionActive(): Boolean =
     isEmbedVoActive() || isMediaCodecEmbedConfigured()
@@ -752,9 +741,9 @@ class MPVView(
    * Wires the second SurfaceView that vo=mediacodec_embed renders its OSD/subtitles into.
    *
    * MediaCodec hands the decoded frame straight to the player surface, so mpv has no GL pass left
-   * to draw the OSD into and needs its own window (`android-osd-wid`). Without it mpv aborts the
-   * video output with "No Android OSD Surface is attached for direct MediaCodec output" and keeps
-   * playing audio over a black screen.
+   * to draw the OSD into and needs its own window (`android-osd-wid`). The window is attached
+   * once and then left completely alone: detaching it, re-attaching it or re-opening vo during
+   * playback tears down the MediaCodec -> ANativeWindow chain and leaves a black video layer.
    */
   fun setOsdSurfaceView(surfaceView: SurfaceView) {
     if (osdSurfaceView === surfaceView) return
@@ -764,93 +753,35 @@ class MPVView(
     surfaceView.holder.addCallback(
       object : SurfaceHolder.Callback {
         override fun surfaceCreated(holder: SurfaceHolder) {
-          osdSurfaceReady = true
-          // This is the ONLY place where a start-up VO re-open is allowed. The OSD window first
-          // becomes available here (Activity start); a later Surface (re)bind during playback must
-          // never run vo=null / vid=no recovery on a healthy MediaCodec chain.
-          syncOsdSurfaceAttachment(allowStartupRecovery = true)
+          attachOsdWindow()
         }
 
         override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
 
-        override fun surfaceDestroyed(holder: SurfaceHolder) {
-          osdSurfaceReady = false
-          // Do NOT detach the OSD window while playing. A seek can rebuild this SurfaceView, and
-          // detaching android-osd-wid makes vo=mediacodec_embed drop its video output, leaving a
-          // 1x1 (black) video layer. Tear it down only when the Activity is really going away.
-          if (isExiting) detachOsdSurfaceIfNeeded()
-        }
+        override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
       },
     )
   }
 
-  private fun detachOsdSurfaceIfNeeded() {
-    if (!osdSurfaceAttached) return
-    osdSurfaceAttached = false
-    runCatching { MPVLib.detachOsdSurface() }
-      .onFailure { Log.w(TAG, "Failed to detach OSD surface", it) }
-  }
-
-  /** Attaches/detaches the OSD window to match the currently active video output. */
-  fun syncOsdSurfaceAttachment(allowStartupRecovery: Boolean = false) {
-    val view = osdSurfaceView ?: return
-    if (!isEmbedVoActive()) {
-      detachOsdSurfaceIfNeeded()
-      return
-    }
-    if (!osdSurfaceReady) return
-    val surface = view.holder.surface.takeIf { it.isValid } ?: return
-    // A fresh OSD Surface always gets re-attached (idempotent) so a rebuilt window stays wired;
-    // a plain playback-time sync leaves an already-attached window completely alone.
-    if (osdSurfaceAttached && !allowStartupRecovery) return
-    runCatching { MPVLib.attachOsdSurface(surface) }
-      .onSuccess {
-        osdSurfaceAttached = true
-        // Start-up only: the VO may have been opened before the OSD window existed, in which case
-        // mpv gave up on the video track; reopen it so the picture actually comes back. Doing this
-        // on a later (re)bind would kill an output that is already playing.
-        if (allowStartupRecovery && !embedVideoOutputEstablished) reopenEmbedVideoOutput()
-      }
-      .onFailure { Log.w(TAG, "Failed to attach OSD surface", it) }
-  }
-
   /**
-   * Re-opens the embedded video output so it picks up the OSD window. Setting `vo` to the value
-   * it already holds is a no-op, so it is switched through "null" first. When the open fails mpv
-   * deselects the video track entirely and never retries, so re-select it as well.
+   * Associates mpv's OSD window with the current OSD Surface. This is idempotent and never touches
+   * the video output, so it is safe to call whenever the player Surface is (re)bound: the embed
+   * video output refuses to open without an OSD window, and a seek-driven rebuild can drop it.
    */
-  private fun reopenEmbedVideoOutput() {
+  private fun attachOsdWindow() {
+    val view = osdSurfaceView ?: return
     if (!isEmbedVoActive()) return
-    runCatching {
-      MPVLib.setPropertyString("vo", "null")
-      MPVLib.setPropertyString("vo", "mediacodec_embed")
-    }.onFailure { Log.w(TAG, "Failed to reopen embedded video output", it) }
-    reselectVideoTrack()
+    val surface = view.holder.surface.takeIf { it.isValid } ?: return
+    runCatching { MPVLib.attachOsdSurface(surface) }
+      .onSuccess { diag("osd window attached") }
+      .onFailure { diag("osd window attach failed: ${it.message}") }
   }
 
-  private fun reselectVideoTrack() {
-    if (runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() != null) return
-    runCatching { MPVLib.setPropertyString("vid", "no") }
-    val trackCount = runCatching { MPVLib.getPropertyInt("track-list/count") }.getOrNull() ?: 0
-    for (index in 0 until trackCount) {
-      val type = runCatching { MPVLib.getPropertyString("track-list/$index/type") }.getOrNull()
-      if (type == "video") {
-        val id = runCatching { MPVLib.getPropertyInt("track-list/$index/id") }.getOrNull()
-        if (id != null) {
-          runCatching { MPVLib.setPropertyString("vid", id.toString()) }
-            .onSuccess { Log.w(TAG, "re-selected video track $id for mediacodec_embed") }
-            .onFailure { Log.w(TAG, "Failed to re-select video track $id", it) }
-          return
-        }
-      }
-    }
-    runCatching { MPVLib.setPropertyString("vid", "auto") }
-  }
-
-  // There is deliberately NO playback-time VO recovery probe any more. During a seek mpv briefly
-  // clears video-params; the old unconditional probe mistook that for a dead output and re-ran
-  // vo=null / vid=no on a healthy MediaCodec chain, collapsing the video layer to a 1x1 (black)
-  // buffer. Recovery now runs exactly once, from the OSD SurfaceView's first surfaceCreated().
+  // There is deliberately NO playback-time video-output recovery in this fork any more. Earlier
+  // builds re-ran `vo=null` / `vid=no` whenever a seek rebuilt the SurfaceView, which tore down a
+  // healthy MediaCodec -> ANativeWindow chain and left the video layer at a 1x1 (black) buffer.
+  // The surface lifecycle is upstream's job (PlaybackSession.bindSurface/unbindSurface already
+  // re-open the configured vo and re-select the video track); this fork only letterboxes.
 
   private var lastEmbedAspect: Double? = null
   /** True once the embed letterbox rectangle has been committed to layoutParams for this View. */
@@ -875,17 +806,8 @@ class MPVView(
     // ratio). Derive the true DAR from cached decoded width/height + rotation instead. Never read
     // mpv synchronously from an observer callback: that blocked the dispatch thread and froze the
     // UI in an earlier build.
-    val measuredDar = computeEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 }
+    val measuredDar = cachedEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 }
     if (measuredDar != null) {
-      // Real decoded params arrived -> the embedded output is up. Freeze the start-up recovery
-      // helpers from here on (see embedVideoOutputEstablished).
-      // Require a bound Surface as well: on a second playback the cached video params can still
-      // be present before the SurfaceView is attached, and freezing the start-up recovery then
-      // would leave that session blind.
-      if (!embedVideoOutputEstablished && PlaybackSession.isSurfaceAttachedTo(this)) {
-        embedVideoOutputEstablished = true
-        Log.w(TAG, "embed output established; recovery helpers frozen")
-      }
       lastEmbedAspect = measuredDar
     } else if (lastEmbedAspect == null) {
       // Only a first-frame fallback. A seek briefly empties the cached decoded size while
@@ -896,8 +818,8 @@ class MPVView(
     applyEmbedAspectRatioBounds()
   }
 
-  /** True source DAR: cached observer values only, no synchronous mpv access. */
-  private fun computeEmbedDisplayAspect(): Double? {
+  /** True source DAR from the observer cache only. Safe on mpv's event dispatch thread. */
+  private fun cachedEmbedDisplayAspect(): Double? {
     val w = PlaybackSession.propInt["video-params/w"].value ?: 0
     val h = PlaybackSession.propInt["video-params/h"].value ?: 0
     if (w <= 0 || h <= 0) return null
@@ -905,7 +827,22 @@ class MPVView(
     return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
   }
 
-  private fun applyEmbedAspectRatioBounds() {
+  /**
+   * True source DAR with a direct mpv read as fallback. The observer cache is emptied when a file
+   * ends, so a second playback of the same core can start without any decoded size. Only call
+   * this from the main thread OUTSIDE mpv's event dispatch: a synchronous read inside an observer
+   * callback freezes the dispatch thread and the whole UI.
+   */
+  private fun computeEmbedDisplayAspect(): Double? {
+    cachedEmbedDisplayAspect()?.let { return it }
+    val w = runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() ?: 0
+    val h = runCatching { MPVLib.getPropertyInt("video-params/h") }.getOrNull() ?: 0
+    if (w <= 0 || h <= 0) return null
+    val rotate = runCatching { MPVLib.getPropertyInt("video-params/rotate") }.getOrNull() ?: 0
+    return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
+  }
+
+  private fun applyEmbedAspectRatioBounds(allowDirectRead: Boolean = false) {
     if (!isEmbedSessionActive()) return
     val generation = PlaybackSession.state.value.generation
     // Once the rectangle is committed it is frozen for the WHOLE file. Resizing the SurfaceView
@@ -914,17 +851,25 @@ class MPVView(
     // same video again", where the core is reused and video-params/aspect never fires again.
     if (embedBoundsApplied && generation == embedBoundsGeneration) return
     // Prefer the latest cached decoded size; video-params/aspect reports the container ratio under
-    // the embed VO. On a second playback the cache can be empty, so fall back to the DAR that
-    // last produced a correct rectangle instead of leaving the view at MATCH_PARENT (stretched).
-    val dar = computeEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 }
+    // the embed VO. On a second playback the cache is empty, so fall back to a direct read (only
+    // allowed outside mpv's event thread) and finally to the DAR that last produced a correct
+    // rectangle instead of leaving the view at MATCH_PARENT (stretched picture).
+    val dar = (if (allowDirectRead) computeEmbedDisplayAspect() else cachedEmbedDisplayAspect())
+      ?.takeIf { it in 0.2..5.0 }
       ?: lastEmbedAspect
       ?: lastSuccessfulEmbedDar.takeIf { it > 0.0 }
-      ?: return
+      ?: run {
+        diag("letterbox: no DAR available yet")
+        return
+      }
     if (dar != lastEmbedAspect) lastEmbedAspect = dar
     val container = parent as? ViewGroup ?: return
     val containerWidth = container.width
     val containerHeight = container.height
-    if (containerWidth <= 0 || containerHeight <= 0) return
+    if (containerWidth <= 0 || containerHeight <= 0) {
+      diag("letterbox: container not laid out yet")
+      return
+    }
     val containerDar = containerWidth.toDouble() / containerHeight.toDouble()
     val videoWidth: Int
     val videoHeight: Int
@@ -938,9 +883,10 @@ class MPVView(
     val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
     if (params.width == videoWidth && params.height == videoHeight) {
       commitEmbedBounds(dar, generation)
+      diag("letterbox: already ${videoWidth}x$videoHeight (dar=$dar)")
       return
     }
-    Log.w(TAG, "embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
+    diag("letterbox: apply dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
     params.width = videoWidth
     params.height = videoHeight
     params.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
@@ -960,6 +906,29 @@ class MPVView(
     lastSuccessfulEmbedDar = dar
   }
 
+  private val diagScope = CoroutineScope(Dispatchers.IO + Job())
+
+  /**
+   * This TV ROM filters the app's logcat output completely, so the interesting playback events are
+   * written to a file that can be pulled over adb instead.
+   */
+  private fun diag(message: String) {
+    val line = "${System.currentTimeMillis()} $message\n"
+    diagScope.launch {
+      runCatching {
+        val publicDir = java.io.File("/sdcard/mpv")
+        val target =
+          if (publicDir.isDirectory) java.io.File(publicDir, "mpvRx_embed_diag.log")
+          else java.io.File(context.getExternalFilesDir(null), "mpvRx_embed_diag.log")
+        target.parentFile?.mkdirs()
+        target.appendText(line)
+      }
+    }
+  }
+
+  /** Player-level events for the on-device diagnostic file. */
+  fun logDiag(message: String) = diag(message)
+
   /** Drops the embed letterbox from a previous session so gpu/gpu-next gets the full viewport back. */
   private fun restoreFullSizeEmbedBounds() {
     lastEmbedAspect = null
@@ -977,11 +946,13 @@ class MPVView(
     layoutParams = params
   }
 
-  /** Fallback only while the native window is still unbound: resize it afterwards blanks the VO. */
+  /**
+   * The letterbox can only be computed once the container is laid out and the decoded size is
+   * known - neither is guaranteed when the Surface is bound on a second playback. Keep retrying
+   * until the rectangle has been committed; afterwards this listener does nothing at all.
+   */
   private val embedRelayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-    if (!isEmbedSessionActive() || embedBoundsApplied ||
-      PlaybackSession.isSurfaceAttachedTo(this@MPVView)
-    ) return@OnGlobalLayoutListener
+    if (!isEmbedSessionActive() || embedBoundsApplied) return@OnGlobalLayoutListener
     applyEmbedAspectRatioBounds()
   }
 
@@ -1016,6 +987,7 @@ class MPVView(
     // Freezing it in an earlier build left the native window at its start-up size, so the
     // 3840x1608 decoded buffer was scaled into a 1920x1080 view (stretched picture).
     if (!PlaybackSession.resizeSurface(width, height, owner = this)) ensureSurfaceAttached()
+    diag("surface size changed: ${width}x$height")
     applyFrameRate()
     redrawPausedFrame()
   }
@@ -1043,17 +1015,17 @@ class MPVView(
     val attachedGeneration = surfaceAttachmentGeneration
 
     // A second playback reuses the mpv core, so video-params/aspect does not fire again and the
-    // letterbox would stay MATCH_PARENT (stretched picture). Commit it from the cached decoded
-    // size (or the last known-good DAR) BEFORE binding the native window: changing layoutParams
-    // after binding detaches the ANativeWindow that MediaCodec writes into and blanks the picture
-    // on the next seek. Try on every bind - the generation freeze + size guard below make it a
-    // no-op once the rectangle has been committed for the current file.
-    if (isEmbedSessionActive()) applyEmbedAspectRatio(null)
+    // letterbox would stay MATCH_PARENT (stretched picture). Commit it from the real decoded size
+    // BEFORE binding the native window: changing layoutParams after binding detaches the
+    // ANativeWindow that MediaCodec writes into. Once committed it is frozen for the whole file,
+    // so a seek never resizes the SurfaceView.
+    if (isEmbedSessionActive()) applyEmbedAspectRatioBounds(allowDirectRead = true)
 
     fun isCurrentSurface(): Boolean =
       !isExiting && surfaceBindingEnabled && renderCallbacksEnabled && surface.isValid &&
         renderSurface === surface && surfaceAttachmentGeneration == attachedGeneration
 
+    diag("surface attach: ${width}x$height gen=${PlaybackSession.state.value.generation}")
     PlaybackSession.bindSurface(
       surface, width, height, this,
       ownerIsActive = ::isCurrentSurface,
@@ -1077,12 +1049,9 @@ class MPVView(
       },
     )
     if (isEmbedSessionActive()) {
-      Log.w(TAG, "embed surface attach: established=$embedVideoOutputEstablished, dar=$lastEmbedAspect")
-      // Start-up VO recovery is intentionally NOT repeated here. A playback-time seek can rebuild
-      // this SurfaceView; running vo=null / vid=no recovery then tears down the MediaCodec ->
-      // ANativeWindow chain and leaves a 1x1 (black) video layer. Only re-associate the OSD
-      // window when it is detached (idempotent, never reopens the video output).
-      syncOsdSurfaceAttachment()
+      // Re-associate the OSD window (idempotent, never re-opens vo). The embed video output
+      // refuses to start without one, and a seek-driven Surface rebuild can drop it.
+      attachOsdWindow()
       registerEmbedRelayoutListener()
     }
   }
@@ -1091,17 +1060,11 @@ class MPVView(
     cancelSurfaceRecovery()
     cancelPausedFrameRedraw()
     unregisterEmbedRelayoutListener()
-    // Keep both the letterbox rectangle and the frozen start-up recovery state while playing.
-    // A seek-driven surface rebuild must neither resize the SurfaceView (that detaches the
-    // ANativeWindow and blanks the frame) nor restart vo=null / vid=no recovery on a healthy VO.
-    // Only a real Activity teardown resets the recovery flag.
-    if (isExiting) embedVideoOutputEstablished = false
-    // Keep the letterbox rectangle across a seek-driven surface rebuild. Using isEmbedVoActive()
-    // alone was too strict: videoOutput is not published yet during a second playback's early
-    // callbacks, so the rectangle was reset to MATCH_PARENT and the picture came back stretched.
-    val keepBounds = !isExiting && isEmbedSessionActive()
-    if (!keepBounds) restoreFullSizeEmbedBounds()
-    Log.w(TAG, "embed surface destroyed; keepBounds=$keepBounds, dar=$lastEmbedAspect")
+    // Keep the letterbox rectangle across a seek-driven surface rebuild: resizing the SurfaceView
+    // detaches the ANativeWindow that MediaCodec writes into and blanks the frame. Only a real
+    // teardown restores the full viewport (gpu/gpu-next letterbox inside mpv).
+    if (isExiting) restoreFullSizeEmbedBounds()
+    diag("surface destroyed; exiting=$isExiting dar=$lastEmbedAspect")
     surfaceAttachmentGeneration++
     isSurfaceReady = false
     lastRequestedFrameRate = Float.NaN
