@@ -748,8 +748,6 @@ class PlayerActivity :
     releaseDetachedBackgroundPlaybackBeforeFreshLaunch()
     startMpvCorePreparation()
     setContentView(binding.root)
-    // vo=mediacodec_embed needs a separate transparent window for mpv's OSD/subtitles.
-    binding.player.setOsdSurfaceView(binding.osdSurface)
     setupPipHelper()
 
     // Let Android create/draw the Surface while assets and libmpv initialize. A blocking join

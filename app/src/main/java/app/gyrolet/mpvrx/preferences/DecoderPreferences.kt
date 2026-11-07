@@ -35,13 +35,6 @@ class DecoderPreferences(
    */
   val mediaCodecEmbed = preferenceStore.getBoolean("mediacodec_embed", true)
 
-  /**
-   * Whether vo=mediacodec_embed gets its own OSD window (android-osd-wid). The direct MediaCodec
-   * output cannot draw subtitles/OSC into the video surface, so mpv needs a second window for
-   * them. Turning this off makes the embed output behave exactly like upstream's (no subtitles,
-   * but nothing extra attached to the video surface). Applies on the next playback.
-   */
-  val embedOsdWindow = preferenceStore.getBoolean("embed_osd_window", true)
   val hdrScreenOutput = preferenceStore.getBoolean("hdr_screen_output", false)
   val hdrScreenMode = preferenceStore.getEnum("hdr_screen_mode", HdrScreenMode.OFF)
   val lastHdrMode = preferenceStore.getEnum("hdr_last_selected_mode", HdrScreenMode.BT_2020)

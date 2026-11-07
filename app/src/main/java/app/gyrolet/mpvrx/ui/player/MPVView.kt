@@ -11,7 +11,6 @@ package app.gyrolet.mpvrx.ui.player
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.os.Environment
 import android.os.SystemClock
@@ -21,8 +20,6 @@ import android.view.Display
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -630,17 +627,6 @@ class MPVView(
     PlaybackSession.setOptionString("osd-margin-x", DEFAULT_OSD_SAFE_MARGIN.toString())
     PlaybackSession.setOptionString("osd-margin-y", DEFAULT_OSD_SAFE_MARGIN.toString())
 
-    // This TV ROM filters logcat completely, so let mpv write its own log where adb can pull it.
-    // The embed video output only ever renders into a MediaCodec surface, and its failures are
-    // invisible from the app side.
-    if (isMediaCodecEmbedConfigured()) {
-      val dir = java.io.File("/sdcard/mpv").takeIf { it.isDirectory } ?: context.getExternalFilesDir(null)
-      val logFile = java.io.File(dir, "mpvRx_mpv.log")
-      runCatching { MPVLib.setPropertyString("log-file", logFile.absolutePath) }
-        .onFailure { Log.w(TAG, "Could not enable the mpv log file", it) }
-      runCatching { MPVLib.setPropertyString("msg-level", "all=warn,vo=debug") }
-    }
-
     // libmpv is initialized here, but no file has been loaded yet. Unlike initOptions(),
     // it is safe to run change-list and shader property commands here.
     pendingStartupShaders?.let { selection ->
@@ -735,8 +721,6 @@ class MPVView(
 
   // ==================== vo=mediacodec_embed (HW+ zero-copy) support ====================
 
-  private var osdSurfaceView: SurfaceView? = null
-
   /**
    * Master switch, ON by default. When off, selectRenderBackend() falls through to the app's
    * own gpu-next / Vulkan / Anime4K decision chain. There is deliberately no runtime vo switch
@@ -757,80 +741,13 @@ class MPVView(
   private fun isEmbedSessionActive(): Boolean =
     isEmbedVoActive() || isMediaCodecEmbedConfigured()
 
-  /**
-   * Wires the second SurfaceView that vo=mediacodec_embed renders its OSD/subtitles into.
-   *
-   * MediaCodec hands the decoded frame straight to the player surface, so mpv has no GL pass left
-   * to draw the OSD into and needs its own window (`android-osd-wid`). The window is attached
-   * once and then left completely alone: detaching it, re-attaching it or re-opening vo during
-   * playback tears down the MediaCodec -> ANativeWindow chain and leaves a black video layer.
-   */
-  fun setOsdSurfaceView(surfaceView: SurfaceView) {
-    if (osdSurfaceView === surfaceView) return
-    osdSurfaceView = surfaceView
-    if (!isEmbedOsdWindowEnabled()) {
-      // Exactly upstream's behaviour: nothing extra is attached to the video surface.
-      diag("osd window disabled by the user")
-      return
-    }
-    surfaceView.holder.setFormat(PixelFormat.TRANSPARENT)
-    surfaceView.setZOrderMediaOverlay(true)
-    surfaceView.holder.addCallback(
-      object : SurfaceHolder.Callback {
-        override fun surfaceCreated(holder: SurfaceHolder) {
-          attachOsdWindow()
-        }
-
-        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
-
-        override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
-      },
-    )
-  }
-
-  /** Whether the embed output gets its own OSD window (android-osd-wid) for subtitles/OSC. */
-  private fun isEmbedOsdWindowEnabled(): Boolean =
-    runCatching { decoderPreferences.embedOsdWindow.get() }.getOrDefault(true)
-
-  /**
-   * Associates mpv's OSD window with the current OSD Surface. This is idempotent and never touches
-   * the video output, so it is safe to call whenever the player Surface is (re)bound: the embed
-   * video output refuses to open without an OSD window, and a seek-driven rebuild can drop it.
-   */
-  private fun attachOsdWindow() {
-    val view = osdSurfaceView ?: return
-    if (!isEmbedVoActive()) return
-    if (!isEmbedOsdWindowEnabled()) return
-    val surface = view.holder.surface.takeIf { it.isValid }
-    if (surface == null) {
-      // The OSD surface does not exist yet. The video output cannot open without it, so keep
-      // trying for a moment: the player Surface is usually created first.
-      runCatching { postDelayed({ attachOsdWindow() }, 120L) }
-      return
-    }
-    // Only FongMi's mpv build ships MPVLib.attachOsdSurface(); the standard build has no such
-    // API, so it is called reflectively and simply skipped there.
-    val attached = runCatching {
-      val method = osdAttachMethod ?: return@runCatching false
-      method.invoke(null, surface)
-      true
-    }.getOrDefault(false)
-    diag(if (attached) "osd window attached" else "osd window not attached")
-  }
-
-  private val osdAttachMethod: java.lang.reflect.Method? by lazy {
-    runCatching {
-      MPVLib::class.java.methods.firstOrNull {
-        it.name == "attachOsdSurface" && it.parameterTypes.size == 1
-      }
-    }.getOrNull()
-  }
-
-  // There is deliberately NO playback-time video-output recovery in this fork any more. Earlier
-  // builds re-ran `vo=null` / `vid=no` whenever a seek rebuilt the SurfaceView, which tore down a
-  // healthy MediaCodec -> ANativeWindow chain and left the video layer at a 1x1 (black) buffer.
-  // The surface lifecycle is upstream's job (PlaybackSession.bindSurface/unbindSurface already
-  // re-open the configured vo and re-select the video track); this fork only letterboxes.
+  // The standard mpv kernel (mpvlib 1.1.7, non-FongMi) renders vo=mediacodec_embed straight into
+  // the player Surface and neither needs nor exposes a second OSD window. Upstream's standard
+  // build plays and seeks fine with exactly this setup, so this fork adds NOTHING to the playback
+  // path - no extra SurfaceView, no attachOsdSurface(), no vo/vid recovery, no OSD detach. Only
+  // the view-level letterbox below is added, because upstream stretches the decoded frame to fill
+  // the viewport. (FongMi's kernel does require android-osd-wid for embed, which is why its
+  // embed output is unusable on this TV; the FongMi flavor is not the supported embed build.)
 
   private var lastEmbedAspect: Double? = null
   /** True once the embed letterbox rectangle has been committed to layoutParams for this View. */
@@ -1086,11 +1003,6 @@ class MPVView(
         renderSurface === surface && surfaceAttachmentGeneration == attachedGeneration
 
     diag("surface attach: ${width}x$height gen=${PlaybackSession.state.value.generation}")
-    // The embed video output can only open when mpv already owns an OSD window (android-osd-wid);
-    // without one it aborts with "No Android OSD Surface is attached for direct MediaCodec
-    // output" and the video layer stays empty. Associate the window BEFORE the surface is bound,
-    // because binding is what makes upstream open the video output.
-    if (isEmbedSessionActive()) attachOsdWindow()
     PlaybackSession.bindSurface(
       surface, width, height, this,
       ownerIsActive = ::isCurrentSurface,
@@ -1098,9 +1010,6 @@ class MPVView(
         if (isCurrentSurface() && PlaybackSession.isRendererReadyFor(this)) notifyRendererReady()
       },
       onRendererFailed = {
-        // Re-associate the OSD window before the retry: the video output may have been opened
-        // while the window was still missing, and it aborts in that case.
-        if (isEmbedSessionActive()) attachOsdWindow()
         if (isCurrentSurface() && retriesRemaining > 0 && windowVisibility == VISIBLE) {
           val retry = Runnable {
             surfaceRecovery = null
@@ -1116,12 +1025,7 @@ class MPVView(
         }
       },
     )
-    if (isEmbedSessionActive()) {
-      // Re-associate the OSD window (idempotent, never re-opens vo). The embed video output
-      // refuses to start without one, and a seek-driven Surface rebuild can drop it.
-      attachOsdWindow()
-      registerEmbedRelayoutListener()
-    }
+    if (isEmbedSessionActive()) registerEmbedRelayoutListener()
   }
 
   override fun onRenderSurfaceDestroyed() {
