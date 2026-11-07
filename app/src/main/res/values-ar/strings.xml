@@ -56,10 +56,8 @@
   <string name="pref_appearance_ui_scale_restart_now">إعادة التشغيل الآن</string>
   <string name="pref_appearance_unlimited_name_lines_title">إظهار الأسماء كاملة</string>
   <string name="pref_appearance_unlimited_name_lines_summary">إظهار أسماء المجلدات ومقاطع الفيديو كاملة دون اقتطاع</string>
-  <string name="pref_appearance_hide_player_buttons_background_title">إخفاء خلفية أزرار المشغّل</string>
   <string name="pref_appearance_force_dark_player_buttons_background_title">استخدام خلفيات داكنة لأزرار المشغّل دائمًا</string>
   <string name="pref_appearance_force_dark_player_buttons_background_summary">إبقاء خلفيات أزرار التحكم في المشغّل داكنة في السمات الفاتحة والداكنة والتلقائية</string>
-  <string name="pref_appearance_hide_player_buttons_background_summary">إخفاء خلفية جميع أزرار التحكم في المشغّل</string>
   <string name="pref_appearance_category_file_browser">متصفح الملفات</string>
   <string name="pref_appearance_category_thumbnails">الصور المصغّرة</string>
   <string name="pref_appearance_category_navigation">التنقل</string>
@@ -162,7 +160,7 @@
   <string name="pref_player_show_chapter_indicators_title">إظهار مؤشرات الفصول على شريط التقديم</string>
   <string name="pref_player_show_chapter_indicators_summary">فصل الفصول بصريًا على امتداد شريط التقديم.</string>
   <!-- Gesture Preferences Hardcoded -->
-  <string name="pref_double_tap_seek_area_width_title">عرض منطقة التقديم بالنقر المزدوج</string>
+  <string name="pref_double_tap_seek_area_width_title">عرض منطقة إيماءات النقر</string>
   <!-- Advanced Preferences Hardcoded -->
   <string name="pref_export_settings_title">تصدير الإعدادات</string>
   <string name="pref_export_settings_summary">تصدير الإعدادات إلى ملف XML</string>
@@ -196,7 +194,7 @@
   <string name="pref_player_orientation_reverse_landscape">أفقي معكوس</string>
   <string name="pref_player_orientation_sensor_landscape">أفقي حسب المستشعر</string>
   <string name="pref_player_save_position_on_quit">حفظ الموضع عند الخروج</string>
-  <string name="pref_player_double_tap_seek_duration">مدة التقديم بالنقر المزدوج</string>
+  <string name="pref_player_double_tap_seek_duration">مدة التقديم بالنقر</string>
   <string name="pref_player_custom_skip_duration_title">مدة تخطٍ مخصصة</string>
   <string name="pref_player_custom_skip_duration_summary">المدة المطلوب تخطيها للأمام بزر التخطي المخصص</string>
   <string name="pref_player_seeking_title">التقديم</string>
@@ -206,8 +204,6 @@
   <string name="pref_player_gestures_volume">إيماءات مستوى الصوت</string>
   <string name="pref_player_gestures_pinch_to_zoom">الضم للتكبير</string>
   <string name="pref_player_gestures_pinch_to_zoom_subtitles">الضم لتكبير الترجمة</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe">السحب بإصبعين لتغيير السرعة</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe_summary">اسحب بإصبعين لأعلى أو لأسفل لتغيير سرعة التشغيل بمقدار 0.25x، من 0.5x إلى 4x</string>
   <string name="pref_subtitles_secondary_pinch_zoom">الضم يكبّر الترجمة الثانوية</string>
   <string name="pref_subtitles_secondary_pinch_zoom_summary">عند ضم الترجمة الأساسية، يتم أيضًا تغيير حجم الترجمة الثانوية</string>
   <string name="pref_player_gestures_swipe_subtitles_to_seek_dialog">سحب الترجمة لفتح مربع التقديم</string>
@@ -222,18 +218,24 @@
   <string name="pref_player_controls_show_loading_circle">إظهار دائرة التحميل</string>
   <string name="pref_player_display_show_status_bar">إظهار شريط حالة النظام مع عناصر التحكم</string>
   <string name="pref_gesture">الإيماءات</string>
-  <string name="pref_gesture_summary">نقر مزدوج، عناصر تحكم الوسائط</string>
-  <string name="pref_gesture_double_tap_title">نقر مزدوج</string>
+  <string name="pref_gesture_summary">نقر فردي ومزدوج، عناصر تحكم الوسائط</string>
+  <string name="pref_gesture_double_tap_title">إيماءات النقر</string>
   <string name="pref_gesture_double_tap_none">بلا</string>
   <string name="pref_gesture_double_tap_seek">تقديم</string>
   <string name="pref_gesture_double_tap_play">تشغيل/إيقاف مؤقت</string>
   <string name="pref_gesture_double_tap_custom">مخصص</string>
   <string name="pref_gesture_double_tap_left_title">نقر مزدوج (يسار)</string>
+  <string name="pref_gesture_single_tap_left_title">نقرة واحدة (يسار)</string>
   <string name="pref_gesture_double_tap_center_title">نقر مزدوج (وسط)</string>
   <string name="pref_gesture_single_tap_center_title">نقرة واحدة (وسط)</string>
   <string name="pref_gesture_double_tap_right_title">نقر مزدوج (يمين)</string>
-  <string name="pref_gesture_use_single_tap_for_center_title">استخدام نقرة واحدة لإيماءة الوسط</string>
-  <string name="pref_gesture_use_single_tap_for_center_summary">استخدام نقرة واحدة في الوسط للإيماءات (مثل التشغيل/الإيقاف المؤقت) بدلًا من النقر المزدوج.</string>
+  <string name="pref_gesture_single_tap_right_title">نقرة واحدة (يمين)</string>
+  <string name="pref_gesture_use_single_tap_for_left_title">نقرة واحدة على اليسار</string>
+  <string name="pref_gesture_use_single_tap_for_center_title">نقرة واحدة في الوسط</string>
+  <string name="pref_gesture_use_single_tap_for_right_title">نقرة واحدة على اليمين</string>
+  <string name="pref_gesture_use_single_tap_for_left_summary">انقر مرة واحدة بدلًا من مرتين لتنفيذ إجراء الجانب الأيسر.</string>
+  <string name="pref_gesture_use_single_tap_for_center_summary" formatted="false">انقر مرة واحدة في المنطقة الوسطى (عرضها 30% افتراضيًا وارتفاعها 30%). النقرات الأخرى في الوسط تُظهر عناصر التحكم أو تخفيها.</string>
+  <string name="pref_gesture_use_single_tap_for_right_summary">انقر مرة واحدة بدلًا من مرتين لتنفيذ إجراء الجانب الأيمن.</string>
   <string name="pref_gesture_center_vertical_subtitle_position_title">السحب لتحريك الترجمة</string>
   <string name="pref_gesture_center_vertical_subtitle_position_summary">اضغط مطولاً في المنتصف ثم اسحب لأعلى أو لأسفل لتحريك الترجمة الأساسية. اضغط مطولاً على أي ترجمة لتحريك مسارها بشكل مستقل. تظل السحبات العادية تفتح قائمة التشغيل.</string>
   <string name="pref_gesture_double_tap_custom_info">يمكنك ربط إجراءات مخصصة بهذه الإيماءات في input.conf باستخدام رموز المفاتيح التالية:
@@ -426,9 +428,6 @@
   <string name="player_sheets_sub_misc_card_title">متنوع</string>
   <string name="player_sheets_sub_delay_card_title">تأخير الترجمة</string>
   <string name="player_sheets_sub_delay_card_delay">التأخير</string>
-  <string name="player_sheets_delay_quick_sync_summary">المزامنة السريعة تضبط قيمة مطلقة، لذا الضغط على الزر نفسه مرتين يُبقي القيمة نفسها.</string>
-  <string name="player_sheets_delay_offset_seconds">%1$+d ث</string>
-  <string name="player_sheets_delay_offset_zero_seconds">0 ث</string>
   <string name="player_sheets_sub_delay_card_speed">السرعة</string>
   <string name="player_sheets_sub_delay_subtitle_voice_heard">سماع الصوت</string>
   <string name="player_sheets_sub_delay_subtitle_text_seen">رؤية النص</string>
@@ -487,7 +486,7 @@
   <string name="pref_player_display_reduce_player_animation">تقليل حركة المشغّل</string>
   <!-- Animation settings -->
   <string name="pref_player_display_hide_player_control_time">إخفاء وقت عناصر تحكم المشغّل</string>
-  <string name="show_splash_ovals_on_double_tap_to_seek">إظهار تموج عند التقديم بالنقر المزدوج</string>
+  <string name="show_splash_ovals_on_double_tap_to_seek">إظهار تموج عند التقديم بالنقر</string>
   <string name="show_time_on_double_tap_to_seek">إظهار وقت التقديم</string>
   <string name="player_sheets_frame_navigation_title">التنقل بين الإطارات</string>
   <string name="player_sheets_frame_navigation_include_subtitles">تضمين الترجمة في لقطة الشاشة</string>
@@ -753,7 +752,7 @@
   <string name="pref_config_cache_cleared_toast">تم مسح ذاكرة الإعدادات المؤقتة</string>
   <string name="pref_thumbnail_cache_confirm_title">مسح ذاكرة الصور المصغّرة؟</string>
   <string name="pref_thumbnail_cache_confirm_subtitle">سيؤدي هذا إلى حذف الصور المصغّرة المخزّنة مؤقتًا من التخزين والذاكرة.</string>
-  <string name="pref_section_logging">التسجيل</string>
+  <string name="pref_section_logging">السجلات والتشخيص والخصوصية</string>
   <string name="pref_export_failed_toast">فشل التصدير: %1$s</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -814,7 +813,6 @@
   <!-- Folders Preferences                                        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="pref_media_library_section">مكتبة الوسائط</string>
-  <string name="pref_hidden_folders_section">المجلدات المخفية</string>
   <string name="pref_clear_content_desc">مسح</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -845,10 +843,6 @@
   <string name="pref_config_cache_size">الحجم: %1$s</string>
   <string name="pref_thumbnail_cache_summary">حذف جميع الصور المصغرة المخزّنة مؤقتًا (ستُنشأ مجددًا أثناء تصفح المجلدات)</string>
   <string name="pref_thumbnail_cache_size">الحجم: %1$s</string>
-  <string name="pref_clear_animated_artwork_cache_title">مسح ذاكرة التخزين المؤقت لأغلفة الألبومات المتحركة</string>
-  <string name="pref_clear_animated_artwork_cache_summary">حذف أغلفة الألبومات المتحركة التي تم تنزيلها (يُعاد تنزيلها عند عرضها)</string>
-  <string name="pref_animated_artwork_cache_size">الحجم: %1$s</string>
-  <string name="pref_animated_artwork_cache_cleared">تم مسح ذاكرة التخزين المؤقت لأغلفة الألبومات المتحركة</string>
   <string name="pref_fonts_cache_size">الحجم: %1$s · %2$d خط</string>
   <string name="pref_failed_to_clear">تعذّر المسح: %1$s</string>
   <string name="pref_export_failed">فشل التصدير: %1$s</string>
@@ -1061,6 +1055,9 @@
   <string name="player_horizontal_flip_off">الانعكاس الأفقي متوقف</string>
   <string name="player_vertical_flip_on">الانعكاس العمودي مفعّل</string>
   <string name="player_vertical_flip_off">الانعكاس العمودي متوقف</string>
+  <string name="player_hwplus_unsupported">%1$s غير مدعوم في وضع HW+. بدّل إلى فك الترميز HW أو SW لاستخدام هذه الميزة.</string>
+  <string name="player_hwplus_use_hw">استخدام HW</string>
+  <string name="player_hwplus_cpu_deband">إزالة التدرجات عبر CPU</string>
   <string name="btn_label_back">سهم الرجوع</string>
   <string name="btn_label_title">عنوان الفيديو</string>
   <string name="btn_label_bookmarks">الفصول / الإشارات المرجعية</string>
@@ -1468,8 +1465,6 @@
   <string name="ui_no_storage_location_configured">لم يتم إعداد موقع تخزين</string>
   <string name="ui_script_file_not_found">لم يتم العثور على ملف البرنامج النصي</string>
   <string name="ui_search_models">البحث عن نماذج...</string>
-  <string name="ui_portrait_playback_buttons">أزرار تشغيل الوضع العمودي</string>
-  <string name="ui_landscape_playback_buttons">أزرار تشغيل الوضع الأفقي</string>
   <string name="ui_portrait_seekbar_position">موضع شريط التقديم في الوضع العمودي</string>
   <string name="ui_landscape_seekbar_position">موضع شريط التقديم في الوضع الأفقي</string>
   <string name="pref_player_buttons_opacity">شفافية خلفية أزرار المشغل</string>
@@ -1531,7 +1526,6 @@
   <string name="oss_androidx_documentfile_description">طبقة تجريد للوصول إلى تخزين المستندات.</string>
   <string name="oss_androidx_media_description">واجهات جلسات الوسائط والتشغيل في Android.</string>
   <string name="oss_androidx_palette_description">يستخرج لوحات ألوان مهيمنة ونابضة بالحياة من الصور.</string>
-  <string name="oss_androidx_profile_installer_description">يجلب الفئات والطرائق مسبقًا لتسريع بدء تشغيل التطبيق.</string>
   <string name="oss_google_material_description">مكوّنات Material Design ومكتبة السمات.</string>
   <string name="oss_google_cast_description">إطار Chromecast لبث الوسائط.</string>
   <string name="oss_material_symbols_description">مجموعة أيقونات Material Symbols لـ Compose.</string>
@@ -1660,7 +1654,6 @@
   <string name="secure_folder_move_items_subtitle">ستختفي من هذه القائمة ومن أي مكان آخر في التطبيق حتى تمت استعادتها.</string>
   <string name="secure_folder_moved_success">تم نقل %1$d ملف إلى المجلد الآمن</string>
   <string name="secure_folder_moved_partial">تم نقل %1$d، وفشل %2$d</string>
-  <string name="secure_folder_move_failed">فشل نقل الملفات إلى المجلد الآمن</string>
   <string name="secure_folder_error_incorrect_pin">رمز PIN غير صحيح</string>
   <string name="secure_folder_error_pins_dont_match">رموز PIN غير متطابقة</string>
   <string name="secure_folder_error_answer_question">يرجى الإجابة على سؤال الأمان</string>
@@ -1899,9 +1892,6 @@
   <string name="ui_yt_dlp_commit">الالتزام %1$s</string>
   <string name="ui_version_unavailable">الإصدار غير متاح</string>
   <string name="ui_update_channel">قناة التحديث</string>
-  <string name="ui_stable_releases">مستقر</string>
-  <string name="ui_preview_builds">معاينة (ليلي)</string>
-  <string name="ui_preview_builds_summary">إصدارات المعاينة هي نسخ اختبار موقّعة تُنشر من أحدث تغييرات mpvRx وقد تكون غير مستقرة.</string>
   <string name="update_whats_new">ما الجديد</string>
   <string name="update_no_release_notes">لا توجد ملاحظات إصدار.</string>
   <string name="update_ready_to_install">جاهز للتثبيت</string>
@@ -2092,8 +2082,6 @@
   <string name="pref_appearance_custom_wallpaper_transparency">الشفافية</string>
   <string name="pref_folders_add_marker">إضافة ملف علامة</string>
   <string name="pref_folders_add_marker_title">إضافة علامة مجلد مخفي</string>
-  <string name="pref_folders_hidden_markers_empty">لم تُضبط ملفات علامات. تظل المجلدات التي تبدأ أسماؤها بنقطة مشمولة.</string>
-  <string name="pref_folders_hidden_markers_summary">تُشمل المجلدات التي تحتوي على هذه الملفات ومجلداتها الفرعية. وتُشمل دائمًا المجلدات التي تبدأ أسماؤها بنقطة.</string>
   <string name="pref_folders_hidden_markers_title">ملفات العلامات</string>
   <string name="pref_folders_include_hidden_summary">البحث عن الفيديوهات في المجلدات التي تبدأ أسماؤها بنقطة أو تحتوي على ملفات العلامات المحددة.</string>
   <string name="pref_folders_include_hidden_title">تضمين مجلدات الوسائط المخفية</string>
@@ -2300,7 +2288,6 @@
   <string name="snapshot_delete_title">حذف اللقطة؟</string>
   <string name="snapshot_delete_selected_title">حذف %1$d لقطات؟</string>
   <string name="snapshot_delete_message">يؤدي هذا إلى إزالة السجل من التطبيق. تبقى الصورة في المعرض.</string>
-  <string name="snapshot_delete">حذف</string>
   <string name="snapshot_remove">إزالة</string>
 
   <string name="snapshot_root">الجذر</string>
@@ -2375,7 +2362,14 @@
     <item quantity="many">تمت استعادة الإعدادات من %1$s. تم تخطي %2$d إدخالًا تالفًا. ستستخدم التنزيلات Configuration/Downloads.</item>
     <item quantity="other">تمت استعادة الإعدادات من %1$s. تم تخطي %2$d إدخال تالف. ستستخدم التنزيلات Configuration/Downloads.</item>
   </plurals>
-  <string name="settings_restore_reverted">تسببت الإعدادات المستعادة من %1$s في تعطل التطبيق، لذا تم التراجع عنها.</string>
+  <plurals name="pref_import_skipped_invalid">
+    <item quantity="zero">تم تخطي %1$d إعداد غير صالح</item>
+    <item quantity="one">تم تخطي إعداد واحد غير صالح (%1$d)</item>
+    <item quantity="two">تم تخطي إعدادين غير صالحين (%1$d)</item>
+    <item quantity="few">تم تخطي %1$d إعدادات غير صالحة</item>
+    <item quantity="many">تم تخطي %1$d إعدادًا غير صالح</item>
+    <item quantity="other">تم تخطي %1$d إعداد غير صالح</item>
+  </plurals>
   <string name="onboarding_configuration_restore_failed">تعذر إكمال إعداد المجلد: %1$s</string>
   <string name="navbar_glow_title">توهج الزجاج</string>
   <string name="navbar_glow_summary">إظهار إضاءة حافة شريط التنقل وتوهج اللمس</string>
@@ -2625,20 +2619,13 @@
   <string name="app_icon_create_custom_shortcut">إضافة أيقونة مخصصة مطابقة إلى الشاشة الرئيسية</string>
   <string name="pref_experimental_badge">تجريبي</string>
   <string name="pref_liquid_glass_experimental_note">تأثيرات الزجاج السائل تجريبية وقد تختلف حسب الجهاز.</string>
-  <string name="pref_hidden_scan_per_mode_summary">اختر ما إذا كان كل وضع للشاشة الرئيسية يفحص المجلدات المخفية بعلامة أو التي تبدأ بنقطة. عند إيقاف أي منهما، يتم تخطي هذه المجلدات أثناء التصفح أيضًا. يتيح المفتاح أعلاه الوسائط المخفية في التطبيق كله.</string>
-  <string name="pref_hidden_scan_scoped_summary">يمكن لكل عرض تضمين المجلدات التي تبدأ بنقطة أو المخفية بعلامة أو استبعادها ضمن المجلدات التي منحت التطبيق حق الوصول إليها على Android فقط. وتبقى المجلدات الأخرى غير متاحة.</string>
   <string name="pref_hidden_scan_library">المكتبة</string>
   <string name="pref_hidden_scan_tree">العرض الشجري</string>
   <string name="pref_hidden_scan_folders">المجلدات</string>
-  <string name="pref_hidden_scan_marked">فحص المجلدات المخفية بعلامة</string>
-  <string name="pref_hidden_scan_marked_summary">المجلدات التي تحتوي على .nomedia أو علامة أخرى من قائمتك</string>
-  <string name="pref_hidden_scan_single_marker_summary">تضمين المجلدات التي تحتوي على هذه العلامة في هذا العرض</string>
-  <string name="pref_hidden_scan_dot_summary">المجلدات التي تبدأ أسماؤها بنقطة، مثل .Videos</string>
   <string name="ambient_cinema">سينما</string>
   <string name="ambient_echo">صدى</string>
   <string name="ambient_mirror">مرآة</string>
   <string name="ambient_ambilight">إضاءة محيطية</string>
-  <string name="ambient_fx_auto_hint">يعمل هذا الوضع تلقائيًا بالكامل؛ فقد ثُبتت المعلمات للحصول على أفضل نتيجة بصرية ولا يمكن تعديلها.</string>
   <string name="app_icon_bg_crimson">قرمزي</string>
   <string name="app_icon_bg_rose">وردي</string>
   <string name="app_icon_bg_peach">خوخي</string>
@@ -2664,7 +2651,6 @@
   <string name="pref_nav_home_title">الرئيسية / الملفات</string>
   <string name="pref_nav_home_summary">تصفح المجلدات والملفات المحلية (متاح دائمًا)</string>
   <string name="pref_nav_actions_section">إجراءات التنقل</string>
-  <string name="pref_about_playback_libraries">مكتبات التشغيل</string>
   <string name="color_picker_field">منتقي الألوان</string>
   <string name="color_picker_sliders">أشرطة التمرير</string>
   <string name="color_picker_field_description">التشبع والسطوع. استخدم أشرطة التمرير للضبط الدقيق.</string>
@@ -2674,15 +2660,12 @@
   <string name="app_icon_custom_background">خلفية مخصصة</string>
   <string name="app_icon_custom_background_hint">اختر لونًا. يستخدم Android أقرب أيقونة مدمجة في درج التطبيقات. ويمكن حفظ لونك الدقيق كأيقونة للشاشة الرئيسية واستخدامه في شاشة التطبيقات الحديثة.</string>
   <string name="app_icon_custom_logo_hint">اختر أي شعار لوضعه فوق الخلفية المخصصة.</string>
-  <string name="app_icon_shortcut_preview">معاينة اختصار الشاشة الرئيسية</string>
   <string name="app_icon_custom_requested">تصميمك</string>
   <string name="app_icon_custom_native_match">أيقونة المشغل الفعلية</string>
   <string name="app_icon_use_wallpaper_colors">استخدام ألوان الخلفية بدلاً من ذلك</string>
-  <string name="app_icon_shortcut_apply">إضافة اختصار أو تحديثه</string>
   <string name="app_icon_shortcut_requested">أُرسل الطلب. أكّد الإضافة في مشغل التطبيقات لإضافة الاختصار.</string>
   <string name="app_icon_shortcut_updated">تم تحديث اختصار الشاشة الرئيسية</string>
   <string name="app_icon_shortcut_unsupported">لا يدعم مشغل التطبيقات هذا إضافة اختصارات للشاشة الرئيسية.</string>
-  <string name="app_icon_shortcut_failed">تعذر حفظ الاختصار. يُرجى المحاولة مرة أخرى.</string>
   <string name="color_picker_wheel">عجلة الألوان</string>
   <string name="color_picker_brightness">السطوع</string>
     <string name="only_for_video_list">لقائمة الفيديوهات فقط</string>
@@ -2841,6 +2824,9 @@
   <string name="jellyfin_details">التفاصيل</string>
   <string name="jellyfin_trailer">المقطع الدعائي</string>
   <string name="jellyfin_open_trailer_error">لا يوجد تطبيق لفتح المقاطع الدعائية.</string>
+  <string name="no_app_for_action">لا يوجد تطبيق على هذا الجهاز يمكنه فتح هذا.</string>
+  <string name="tv_picker_file_exists">يوجد ملف بهذا الاسم بالفعل.</string>
+  <string name="tv_picker_no_access">لا يمكن لـ mpvRx الوصول إلى هذا الموقع.</string>
   <string name="jellyfin_libraries">المكتبات</string>
   <string name="jellyfin_continue_watching">متابعة المشاهدة</string>
   <string name="jellyfin_latest_movies">أحدث الأفلام</string>
@@ -2861,7 +2847,6 @@
   <string name="jellyfin_more_like_this">عناوين مشابهة</string>
   <string name="jellyfin_watched">تمت المشاهدة</string>
   <string name="jellyfin_search_hint">ابحث عن الأفلام والمسلسلات والحلقات…</string>
-  <string name="pref_scan_filters">فلاتر الفحص</string>
   <string name="pref_filter_short_videos">تصفية مقاطع الفيديو القصيرة</string>
   <string name="pref_filter_short_videos_summary">تجاهل الفيديوهات الأقصر من المدة المحددة أثناء الفحص</string>
   <string name="pref_filter_small_files">تصفية الملفات الصغيرة</string>
@@ -2912,7 +2897,10 @@
   <!-- Folder filters and clip export tracks -->
   <string name="clip_audio_track">المسار الصوتي</string>
   <string name="clip_subtitle_track">مسار الترجمة</string>
-  <string name="clip_burn_subtitles">دمج الترجمة في الفيديو</string>
+  <string name="clip_include_subtitles">تضمين الترجمة في الفيديو</string>
+  <string name="clip_subtitle_read_failed">تعذرت قراءة الترجمة المحددة.</string>
+  <string name="clip_subtitle_unsupported">لا يمكن تضمين تنسيق الترجمة هذا في الفيديو.</string>
+  <string name="clip_subtitle_too_large">ملف الترجمة كبير جدًا لتضمينه في مقطع.</string>
   <string name="clip_track_auto_off">تلقائي / إيقاف</string>
   <string name="pref_blacklist_count">عدد المجلدات في القائمة السوداء: %1$d</string>
   <string name="pref_whitelist_disabled">القائمة البيضاء معطّلة</string>
@@ -2930,4 +2918,21 @@
   <string name="clip_quick_length">مدة سريعة</string>
   <string name="clip_length_seconds">%1$d ث</string>
   <string name="clip_crop_reset">استخدام الإطار الكامل</string>
+  <string name="pref_layout_seekbar_above">شريط التقديم بالأعلى</string>
+  <string name="pref_layout_seekbar_below">شريط التقديم بالأسفل</string>
+  <string name="player_layout_preset_title">تخطيط التشغيل</string>
+  <string name="player_layout_preview_hint">معاينة فقط. تُحفظ التغييرات فورًا.</string>
+  <string name="player_layout_shared_landscape_hint">مشترك بين جميع مناطق الوضع الأفقي.</string>
+  <string name="pref_ignore_audio_focus_title">تجاهل التركيز الصوتي</string>
+  <string name="pref_ignore_audio_focus_summary">متابعة تشغيل الصوت والفيديو مع التطبيقات الأخرى دون إيقاف مؤقت أو خفض مستوى الصوت</string>
+  <string name="pref_audio_spatial_title">الصوت المكاني</string>
+  <string name="pref_audio_spatial_summary">يوسّع نطاق المسارات الستيريو لتجربة صوتية أكثر غمراً</string>
+  <string name="pref_measure_enabled_title">مشاركة بيانات التشخيص مع Measure</string>
+  <string name="pref_measure_enabled_summary">اشترك لإرسال الأعطال وعدم الاستجابة ومقاييس الأداء ونشاط الجلسة إلى Measure. معطل افتراضيًا.</string>
+  <string name="pref_measure_not_configured">التشخيص غير متاح: لا يحتوي هذا الإصدار على مفتاح Measure.</string>
+  <string name="pref_layout_portrait_playback_position">عناصر التحكم في التشغيل العمودي</string>
+  <string name="pref_layout_landscape_playback_position">عناصر التحكم في التشغيل الأفقي</string>
+  <string name="pref_layout_playback_center">وسط الشاشة</string>
+  <string name="pref_layout_playback_above_seekbar">فوق شريط التقدم</string>
+  <string name="pref_layout_playback_below_seekbar">تحت شريط التقدم</string>
 </resources>

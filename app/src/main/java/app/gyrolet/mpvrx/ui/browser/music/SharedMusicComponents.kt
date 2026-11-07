@@ -29,7 +29,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -159,6 +158,9 @@ fun SharedMusicTrackListItem(
         when {
           !artworkUrl.isNullOrBlank() -> {
             RemoteImage(
+              maxDimensionPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+                itemArtSize.roundToPx() * if (isCircular) 2 else 1
+              },
               url = artworkUrl,
               contentDescription = title,
               contentScale = ContentScale.Crop,
@@ -497,6 +499,7 @@ fun <T> SharedCompactTrackGridSection(
           ) {
             if (!artworkUrl.isNullOrBlank()) {
               RemoteImage(
+                maxDimensionPx = 256,
                 url = artworkUrl,
                 contentDescription = getTitle(track),
                 contentScale = ContentScale.Crop,
@@ -614,6 +617,7 @@ fun SharedMusicDetailHeader(
       ) {
         if (!artworkUrl.isNullOrBlank()) {
           RemoteImage(
+            maxDimensionPx = 512,
             url = artworkUrl,
             contentDescription = title,
             contentScale = ContentScale.Crop,

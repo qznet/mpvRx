@@ -56,10 +56,8 @@
   <string name="pref_appearance_ui_scale_restart_now">Jetzt neu starten</string>
   <string name="pref_appearance_unlimited_name_lines_title">Vollständige Namen anzeigen</string>
   <string name="pref_appearance_unlimited_name_lines_summary">Vollständige Ordner- und Videonamen ohne Kürzung anzeigen</string>
-  <string name="pref_appearance_hide_player_buttons_background_title">Hintergrund der Player-Schaltflächen ausblenden</string>
-  <string name="pref_appearance_force_dark_player_buttons_background_title">Immer dunkle Hintergründe für Player-Schaltflächen verwenden</string>
+  <string name="pref_appearance_force_dark_player_buttons_background_title">Schaltflächen immer dunkel hinterlegen</string>
   <string name="pref_appearance_force_dark_player_buttons_background_summary">Hintergründe der Player-Steuerelemente im hellen, dunklen und automatischen Design dunkel halten</string>
-  <string name="pref_appearance_hide_player_buttons_background_summary">Den Hintergrund aller Player-Steuerungsschaltflächen ausblenden</string>
   <string name="pref_appearance_category_file_browser">Dateibrowser</string>
   <string name="pref_appearance_category_thumbnails">Vorschaubilder</string>
   <string name="pref_appearance_category_navigation">Navigation</string>
@@ -162,7 +160,7 @@
   <string name="pref_player_show_chapter_indicators_title">Kapitelmarkierungen auf der Suchleiste anzeigen</string>
   <string name="pref_player_show_chapter_indicators_summary">Kapitel entlang der Suchleiste optisch voneinander trennen.</string>
   <!-- Gesture Preferences Hardcoded -->
-  <string name="pref_double_tap_seek_area_width_title">Breite des Doppeltipp-Suchbereichs</string>
+  <string name="pref_double_tap_seek_area_width_title">Breite des Tippgestenbereichs</string>
   <!-- Advanced Preferences Hardcoded -->
   <string name="pref_export_settings_title">Einstellungen exportieren</string>
   <string name="pref_export_settings_summary">Einstellungen in eine XML-Datei exportieren</string>
@@ -196,7 +194,7 @@
   <string name="pref_player_orientation_reverse_landscape">Umgekehrtes Querformat</string>
   <string name="pref_player_orientation_sensor_landscape">Querformat per Sensor</string>
   <string name="pref_player_save_position_on_quit">Position beim Beenden speichern</string>
-  <string name="pref_player_double_tap_seek_duration">Suchdauer bei Doppeltipp</string>
+  <string name="pref_player_double_tap_seek_duration">Sprungdauer beim Tippen</string>
   <string name="pref_player_custom_skip_duration_title">Benutzerdefinierte Sprungdauer</string>
   <string name="pref_player_custom_skip_duration_summary">Dauer für den Vorwärtssprung mit der benutzerdefinierten Sprungtaste</string>
   <string name="pref_player_seeking_title">Suchen</string>
@@ -206,8 +204,6 @@
   <string name="pref_player_gestures_volume">Lautstärkegesten</string>
   <string name="pref_player_gestures_pinch_to_zoom">Zum Zoomen zusammenziehen</string>
   <string name="pref_player_gestures_pinch_to_zoom_subtitles">Untertitel durch Zusammenziehen zoomen</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe">Mit zwei Fingern Geschwindigkeit wischen</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe_summary">Mit zwei Fingern nach oben oder unten wischen, um die Wiedergabegeschwindigkeit in Schritten von 0,25x zwischen 0,5x und 4x zu ändern</string>
   <string name="pref_subtitles_secondary_pinch_zoom">Sekundären Untertitel per Pinch zoomen</string>
   <string name="pref_subtitles_secondary_pinch_zoom_summary">Beim Zoomen des primären Untertitels wird auch der sekundäre skaliert</string>
   <string name="pref_player_gestures_swipe_subtitles_to_seek_dialog">Untertitel wischen, um den Suchdialog zu öffnen</string>
@@ -222,18 +218,24 @@
   <string name="pref_player_controls_show_loading_circle">Ladekreis anzeigen</string>
   <string name="pref_player_display_show_status_bar">Systemstatusleiste mit Steuerelementen anzeigen</string>
   <string name="pref_gesture">Gesten</string>
-  <string name="pref_gesture_summary">Doppeltipp, Mediensteuerung</string>
-  <string name="pref_gesture_double_tap_title">Doppeltipp</string>
+  <string name="pref_gesture_summary">Einfach-/Doppeltipp, Mediensteuerung</string>
+  <string name="pref_gesture_double_tap_title">Tippgesten</string>
   <string name="pref_gesture_double_tap_none">Keine</string>
   <string name="pref_gesture_double_tap_seek">Suchen</string>
   <string name="pref_gesture_double_tap_play">Wiedergabe/Pause</string>
   <string name="pref_gesture_double_tap_custom">Benutzerdefiniert</string>
   <string name="pref_gesture_double_tap_left_title">Doppeltipp (links)</string>
+  <string name="pref_gesture_single_tap_left_title">Einfaches Tippen (links)</string>
   <string name="pref_gesture_double_tap_center_title">Doppeltipp (Mitte)</string>
   <string name="pref_gesture_single_tap_center_title">Einfaches Tippen (Mitte)</string>
   <string name="pref_gesture_double_tap_right_title">Doppeltipp (rechts)</string>
-  <string name="pref_gesture_use_single_tap_for_center_title">Einfaches Tippen für mittlere Geste verwenden</string>
-  <string name="pref_gesture_use_single_tap_for_center_summary">Für Gesten in der Mitte (z. B. Wiedergabe/Pause) einmal statt doppelt tippen.</string>
+  <string name="pref_gesture_single_tap_right_title">Einfaches Tippen (rechts)</string>
+  <string name="pref_gesture_use_single_tap_for_left_title">Einmal tippen: links</string>
+  <string name="pref_gesture_use_single_tap_for_center_title">Einmal tippen: Mitte</string>
+  <string name="pref_gesture_use_single_tap_for_right_title">Einmal tippen: rechts</string>
+  <string name="pref_gesture_use_single_tap_for_left_summary">Einmal statt zweimal tippen, um die linke Aktion auszuführen.</string>
+  <string name="pref_gesture_use_single_tap_for_center_summary" formatted="false">Einmal in der mittleren Zone tippen (standardmäßig 30 % breit und 30 % hoch). Andere Tipps in der Mitte zeigen oder verbergen die Steuerung.</string>
+  <string name="pref_gesture_use_single_tap_for_right_summary">Einmal statt zweimal tippen, um die rechte Aktion auszuführen.</string>
   <string name="pref_gesture_center_vertical_subtitle_position_title">Untertitel durch Ziehen verschieben</string>
   <string name="pref_gesture_center_vertical_subtitle_position_summary">Halte die Mitte gedrückt und ziehe nach oben oder unten, um die primären Untertitel zu verschieben. Halte direkt einen Untertitel gedrückt, um diese Spur einzeln zu verschieben. Normale Wischgesten öffnen weiterhin die Wiedergabeliste.</string>
   <string name="pref_gesture_double_tap_custom_info">Diesen Gesten können in input.conf mit den folgenden Tastencodes benutzerdefinierte Aktionen zugewiesen werden:
@@ -426,9 +428,6 @@ Weiter: NEXT</string>
   <string name="player_sheets_sub_misc_card_title">Verschiedenes</string>
   <string name="player_sheets_sub_delay_card_title">Untertitelverzögerung</string>
   <string name="player_sheets_sub_delay_card_delay">Verzögerung</string>
-  <string name="player_sheets_delay_quick_sync_summary">Die Schnellsynchronisation setzt einen absoluten Wert, sodass mehrmaliges Tippen denselben Wert beibehält.</string>
-  <string name="player_sheets_delay_offset_seconds">%1$+d s</string>
-  <string name="player_sheets_delay_offset_zero_seconds">0 s</string>
   <string name="player_sheets_sub_delay_card_speed">Geschwindigkeit</string>
   <string name="player_sheets_sub_delay_subtitle_voice_heard">Stimme gehört</string>
   <string name="player_sheets_sub_delay_subtitle_text_seen">Text gesehen</string>
@@ -487,7 +486,7 @@ Weiter: NEXT</string>
   <string name="pref_player_display_reduce_player_animation">Player-Animationen reduzieren</string>
   <!-- Animation settings -->
   <string name="pref_player_display_hide_player_control_time">Zeit der Player-Steuerung ausblenden</string>
-  <string name="show_splash_ovals_on_double_tap_to_seek">Wellenanimation bei Doppeltipp-Suche anzeigen</string>
+  <string name="show_splash_ovals_on_double_tap_to_seek">Wellenanimation beim Springen durch Tippen anzeigen</string>
   <string name="show_time_on_double_tap_to_seek">Suchzeit anzeigen</string>
   <string name="player_sheets_frame_navigation_title">Frame-Navigation</string>
   <string name="player_sheets_frame_navigation_include_subtitles">Untertitel in Aufnahme einbeziehen</string>
@@ -753,7 +752,7 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_config_cache_cleared_toast">Konfigurationscache gelöscht</string>
   <string name="pref_thumbnail_cache_confirm_title">Vorschaubild-Cache leeren?</string>
   <string name="pref_thumbnail_cache_confirm_subtitle">Dadurch werden zwischengespeicherte Vorschaubilder aus Speicher und Arbeitsspeicher gelöscht.</string>
-  <string name="pref_section_logging">Protokollierung</string>
+  <string name="pref_section_logging">Protokolle, Diagnose &amp; Datenschutz</string>
   <string name="pref_export_failed_toast">Export fehlgeschlagen: %1$s</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -814,7 +813,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <!-- Folders Preferences                                        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="pref_media_library_section">Medienbibliothek</string>
-  <string name="pref_hidden_folders_section">Ausgeblendete Ordner</string>
   <string name="pref_clear_content_desc">Leeren</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -845,10 +843,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_config_cache_size">Größe: %1$s</string>
   <string name="pref_thumbnail_cache_summary">Alle zwischengespeicherten Video-Miniaturbilder löschen (werden beim Durchsuchen neu erstellt)</string>
   <string name="pref_thumbnail_cache_size">Größe: %1$s</string>
-  <string name="pref_clear_animated_artwork_cache_title">Cache für animierte Albumcover leeren</string>
-  <string name="pref_clear_animated_artwork_cache_summary">Heruntergeladene animierte Albumcover löschen (werden bei Anzeige erneut geladen)</string>
-  <string name="pref_animated_artwork_cache_size">Größe: %1$s</string>
-  <string name="pref_animated_artwork_cache_cleared">Cache für animierte Albumcover geleert</string>
   <string name="pref_fonts_cache_size">Größe: %1$s · %2$d Schriftart(en)</string>
   <string name="pref_failed_to_clear">Löschen fehlgeschlagen: %1$s</string>
   <string name="pref_export_failed">Export fehlgeschlagen: %1$s</string>
@@ -1049,6 +1043,9 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="player_horizontal_flip_off">Horizontal spiegeln aus</string>
   <string name="player_vertical_flip_on">Vertikal spiegeln ein</string>
   <string name="player_vertical_flip_off">Vertikal spiegeln aus</string>
+  <string name="player_hwplus_unsupported">%1$s wird im HW+-Modus nicht unterstützt. Wechsle zur HW- oder SW-Decodierung, um diese Funktion zu nutzen.</string>
+  <string name="player_hwplus_use_hw">HW nutzen</string>
+  <string name="player_hwplus_cpu_deband">CPU-Debanding</string>
   <string name="btn_label_back">Zurück-Pfeil</string>
   <string name="btn_label_title">Videotitel</string>
   <string name="btn_label_bookmarks">Kapitel / Lesezeichen</string>
@@ -1444,8 +1441,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="ui_no_storage_location_configured">Kein Speicherort konfiguriert</string>
   <string name="ui_script_file_not_found">Skriptdatei nicht gefunden</string>
   <string name="ui_search_models">Modelle suchen...</string>
-  <string name="ui_portrait_playback_buttons">Wiedergabeschaltflächen im Hochformat</string>
-  <string name="ui_landscape_playback_buttons">Wiedergabeschaltflächen im Querformat</string>
   <string name="ui_portrait_seekbar_position">Position der Suchleiste im Hochformat</string>
   <string name="ui_landscape_seekbar_position">Position der Suchleiste im Querformat</string>
   <string name="pref_player_buttons_opacity">Deckkraft des Hintergrunds der Player-Schaltflächen</string>
@@ -1507,7 +1502,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="oss_androidx_documentfile_description">Abstraktionsschicht für den Dokumentenspeicherzugriff.</string>
   <string name="oss_androidx_media_description">Android-APIs für Mediensitzungen und Wiedergabe.</string>
   <string name="oss_androidx_palette_description">Extrahiert dominante und lebendige Farbpaletten aus Bildern.</string>
-  <string name="oss_androidx_profile_installer_description">Lädt Klassen und Methoden vorab für einen schnelleren App-Start.</string>
   <string name="oss_google_material_description">Material-Design-Komponenten und Designbibliothek.</string>
   <string name="oss_google_cast_description">Chromecast-Framework für Medienstreaming.</string>
   <string name="oss_material_symbols_description">Material-Symbols-Symbolsatz für Compose.</string>
@@ -1636,7 +1630,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="secure_folder_move_items_subtitle">Sie werden aus dieser Liste und überall sonst in der App ausgeblendet, bis sie wiederhergestellt werden.</string>
   <string name="secure_folder_moved_success">%1$d Datei(en) in Sicheren Ordner verschoben</string>
   <string name="secure_folder_moved_partial">%1$d verschoben, %2$d fehlgeschlagen</string>
-  <string name="secure_folder_move_failed">Fehler beim Verschieben der Dateien in den Sicheren Ordner</string>
   <string name="secure_folder_error_incorrect_pin">Falsche PIN</string>
   <string name="secure_folder_error_pins_dont_match">PINs stimmen nicht überein</string>
   <string name="secure_folder_error_answer_question">Bitte beantworten Sie die Sicherheitsfrage</string>
@@ -1873,9 +1866,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="ui_yt_dlp_commit">Commit %1$s</string>
   <string name="ui_version_unavailable">Version nicht verfügbar</string>
   <string name="ui_update_channel">Update-Kanal</string>
-  <string name="ui_stable_releases">Stabil</string>
-  <string name="ui_preview_builds">Vorschau (Nightly)</string>
-  <string name="ui_preview_builds_summary">Vorschau-Builds sind signierte Testversionen aus den neuesten mpvRx-Änderungen und können instabil sein.</string>
   <string name="update_whats_new">Neuigkeiten</string>
   <string name="update_no_release_notes">Keine Versionshinweise vorhanden.</string>
   <string name="update_ready_to_install">Bereit zur Installation</string>
@@ -2066,8 +2056,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_appearance_custom_wallpaper_transparency">Transparenz</string>
   <string name="pref_folders_add_marker">Markierungsdatei hinzufügen</string>
   <string name="pref_folders_add_marker_title">Markierung für versteckte Ordner hinzufügen</string>
-  <string name="pref_folders_hidden_markers_empty">Keine Markierungsdateien konfiguriert. Ordner mit einem Punkt am Namensanfang werden weiterhin einbezogen.</string>
-  <string name="pref_folders_hidden_markers_summary">Ordner mit diesen Dateien und ihre Unterordner werden einbezogen. Ordner mit einem Punkt am Namensanfang werden immer einbezogen.</string>
   <string name="pref_folders_hidden_markers_title">Markierungsdateien</string>
   <string name="pref_folders_include_hidden_summary">Videos in Ordnern mit einem Punkt am Namensanfang und in Ordnern mit ausgewählten Markierungsdateien suchen.</string>
   <string name="pref_folders_include_hidden_title">Versteckte Medienordner einbeziehen</string>
@@ -2274,7 +2262,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="snapshot_delete_title">Schnappschuss löschen?</string>
   <string name="snapshot_delete_selected_title">%1$d Schnappschüsse löschen?</string>
   <string name="snapshot_delete_message">Dadurch wird der Eintrag aus der App entfernt. Das Bild bleibt in deiner Galerie.</string>
-  <string name="snapshot_delete">Löschen</string>
   <string name="snapshot_remove">Entfernen</string>
 
   <string name="snapshot_root">Stammordner</string>
@@ -2345,7 +2332,10 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
     <item quantity="one">Einstellungen aus %1$s wiederhergestellt. %2$d beschädigter Eintrag wurde übersprungen. Downloads verwenden Configuration/Downloads.</item>
     <item quantity="other">Einstellungen aus %1$s wiederhergestellt. %2$d beschädigte Einträge wurden übersprungen. Downloads verwenden Configuration/Downloads.</item>
   </plurals>
-  <string name="settings_restore_reverted">Die aus %1$s wiederhergestellten Einstellungen haben einen Absturz verursacht und wurden zurückgesetzt.</string>
+  <plurals name="pref_import_skipped_invalid">
+    <item quantity="one">%1$d ungültige Einstellung übersprungen</item>
+    <item quantity="other">%1$d ungültige Einstellungen übersprungen</item>
+  </plurals>
   <string name="onboarding_configuration_restore_failed">Ordnereinrichtung konnte nicht abgeschlossen werden: %1$s</string>
   <string name="navbar_glow_title">Glasleuchten</string>
   <string name="navbar_glow_summary">Randlicht und Berührungsleuchten der Navigationsleiste anzeigen</string>
@@ -2579,20 +2569,13 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="app_icon_create_custom_shortcut">Exaktes benutzerdefiniertes Symbol zum Startbildschirm hinzufügen</string>
   <string name="pref_experimental_badge">Experimentell</string>
   <string name="pref_liquid_glass_experimental_note">Liquid-Glass-Effekte sind experimentell und können je nach Gerät variieren.</string>
-  <string name="pref_hidden_scan_per_mode_summary">Für jede Startansicht festlegen, ob Ordner mit Markierungsdateien oder Punkt-Präfix durchsucht werden. Bei Deaktivierung werden sie auch beim Durchsuchen übersprungen. Der Schalter oben aktiviert versteckte Medien global.</string>
-  <string name="pref_hidden_scan_scoped_summary">Jede Ansicht kann Punktordner und durch Markierungen versteckte Ordner nur innerhalb der auf Android freigegebenen Ordner ein- oder ausschließen. Nicht ausgewählte Ordner bleiben unzugänglich.</string>
   <string name="pref_hidden_scan_library">Bibliothek</string>
   <string name="pref_hidden_scan_tree">Baumansicht</string>
   <string name="pref_hidden_scan_folders">Ordner</string>
-  <string name="pref_hidden_scan_marked">Ordner mit Markierungsdateien durchsuchen</string>
-  <string name="pref_hidden_scan_marked_summary">Ordner mit .nomedia oder einer anderen Markierungsdatei aus deiner Liste</string>
-  <string name="pref_hidden_scan_single_marker_summary">Ordner mit dieser Markierungsdatei in dieser Ansicht anzeigen</string>
-  <string name="pref_hidden_scan_dot_summary">Ordner, deren Name mit einem Punkt beginnt, z. B. .Videos</string>
   <string name="ambient_cinema">Kino</string>
   <string name="ambient_echo">Echo</string>
   <string name="ambient_mirror">Spiegel</string>
   <string name="ambient_ambilight">Ambilight</string>
-  <string name="ambient_fx_auto_hint">Dieser Modus arbeitet vollautomatisch. Für das beste visuelle Ergebnis sind die Parameter festgelegt und können nicht geändert werden.</string>
   <string name="app_icon_bg_crimson">Karmesinrot</string>
   <string name="app_icon_bg_rose">Rosa</string>
   <string name="app_icon_bg_peach">Pfirsich</string>
@@ -2618,7 +2601,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="pref_nav_home_title">Startseite / Dateien</string>
   <string name="pref_nav_home_summary">Lokale Ordner und Dateien durchsuchen (immer verfügbar)</string>
   <string name="pref_nav_actions_section">Navigationsaktionen</string>
-  <string name="pref_about_playback_libraries">Wiedergabebibliotheken</string>
   <string name="color_picker_field">Farbauswahl</string>
   <string name="color_picker_sliders">Regler</string>
   <string name="color_picker_field_description">Sättigung und Helligkeit. Für genaue Anpassungen die Regler verwenden.</string>
@@ -2628,15 +2610,12 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="app_icon_custom_background">Benutzerdefinierter Hintergrund</string>
   <string name="app_icon_custom_background_hint">Wähle eine Farbe. Android verwendet in der App-Übersicht das nächstliegende integrierte Symbol. Deine genaue Farbe kann als Startbildschirmsymbol gespeichert und in der Übersicht verwendet werden.</string>
   <string name="app_icon_custom_logo_hint">Wähle ein beliebiges Logo für deinen benutzerdefinierten Hintergrund.</string>
-  <string name="app_icon_shortcut_preview">Vorschau der Startbildschirmverknüpfung</string>
   <string name="app_icon_custom_requested">Dein Entwurf</string>
   <string name="app_icon_custom_native_match">Tatsächliches Startprogrammsymbol</string>
   <string name="app_icon_use_wallpaper_colors">Stattdessen Hintergrundfarben verwenden</string>
-  <string name="app_icon_shortcut_apply">Verknüpfung hinzufügen oder aktualisieren</string>
   <string name="app_icon_shortcut_requested">Anfrage gesendet. Bestätige die Verknüpfung in deinem Startprogramm.</string>
   <string name="app_icon_shortcut_updated">Startbildschirmverknüpfung aktualisiert</string>
   <string name="app_icon_shortcut_unsupported">Dieses Startprogramm unterstützt keine Startbildschirmverknüpfungen.</string>
-  <string name="app_icon_shortcut_failed">Verknüpfung konnte nicht gespeichert werden. Bitte erneut versuchen.</string>
   <string name="color_picker_wheel">Farbrad</string>
   <string name="color_picker_brightness">Helligkeit</string>
     <string name="only_for_video_list">Nur für die Videoliste</string>
@@ -2779,6 +2758,9 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="jellyfin_details">Details</string>
   <string name="jellyfin_trailer">Trailer</string>
   <string name="jellyfin_open_trailer_error">Keine App zum Öffnen von Trailern verfügbar.</string>
+  <string name="no_app_for_action">Keine App auf diesem Gerät kann das öffnen.</string>
+  <string name="tv_picker_file_exists">Eine Datei mit diesem Namen existiert bereits.</string>
+  <string name="tv_picker_no_access">Auf diesen Speicherort kann mpvRx nicht zugreifen.</string>
   <string name="jellyfin_libraries">Mediatheken</string>
   <string name="jellyfin_continue_watching">Weiterschauen</string>
   <string name="jellyfin_latest_movies">Neueste Filme</string>
@@ -2799,7 +2781,6 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="jellyfin_more_like_this">Ähnliche Titel</string>
   <string name="jellyfin_watched">Angesehen</string>
   <string name="jellyfin_search_hint">Filme, Serien und Episoden suchen…</string>
-  <string name="pref_scan_filters">Scanfilter</string>
   <string name="pref_filter_short_videos">Kurze Videos filtern</string>
   <string name="pref_filter_short_videos_summary">Videos unterhalb der gewählten Dauer beim Scannen ignorieren</string>
   <string name="pref_filter_small_files">Kleine Dateien filtern</string>
@@ -2850,7 +2831,10 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <!-- Folder filters and clip export tracks -->
   <string name="clip_audio_track">Audiospur</string>
   <string name="clip_subtitle_track">Untertitelspur</string>
-  <string name="clip_burn_subtitles">Untertitel in Video einbrennen</string>
+  <string name="clip_include_subtitles">Untertitel ins Video einfügen</string>
+  <string name="clip_subtitle_read_failed">Die ausgewählten Untertitel können nicht gelesen werden.</string>
+  <string name="clip_subtitle_unsupported">Dieses Untertitelformat kann nicht ins Video eingefügt werden.</string>
+  <string name="clip_subtitle_too_large">Die Untertiteldatei ist zu groß für einen Clip.</string>
   <string name="clip_track_auto_off">Automatisch / Aus</string>
   <string name="pref_blacklist_count">%1$d gesperrte Ordner</string>
   <string name="pref_whitelist_disabled">Positivliste deaktiviert</string>
@@ -2868,4 +2852,21 @@ Bitte starten Sie die App neu, damit alle Änderungen wirksam werden.</string>
   <string name="clip_quick_length">Schnellauswahl</string>
   <string name="clip_length_seconds">%1$d s</string>
   <string name="clip_crop_reset">Vollbild verwenden</string>
+  <string name="pref_layout_seekbar_above">Zeitleiste oben</string>
+  <string name="pref_layout_seekbar_below">Zeitleiste unten</string>
+  <string name="player_layout_preset_title">Wiedergabelayout</string>
+  <string name="player_layout_preview_hint">Nur Vorschau. Änderungen werden sofort gespeichert.</string>
+  <string name="player_layout_shared_landscape_hint">Gilt für alle Bereiche im Querformat.</string>
+  <string name="pref_ignore_audio_focus_title">Audiofokus ignorieren</string>
+  <string name="pref_ignore_audio_focus_summary">Audio und Video zusammen mit anderen Apps weiter abspielen, ohne zu pausieren oder die Lautstärke zu senken</string>
+  <string name="pref_audio_spatial_title">Räumliches Audio</string>
+  <string name="pref_audio_spatial_summary">Verbreitert Stereospuren für ein immersiveres Klangerlebnis</string>
+  <string name="pref_measure_enabled_title">Diagnosedaten mit Measure teilen</string>
+  <string name="pref_measure_enabled_summary">Optional Abstürze, ANRs, Leistungsdaten und Sitzungsaktivitäten an Measure senden. Standardmäßig deaktiviert.</string>
+  <string name="pref_measure_not_configured">Diagnose nicht verfügbar: Dieser Build hat keinen Measure-API-Schlüssel.</string>
+  <string name="pref_layout_portrait_playback_position">Wiedergabesteuerung im Hochformat</string>
+  <string name="pref_layout_landscape_playback_position">Wiedergabesteuerung im Querformat</string>
+  <string name="pref_layout_playback_center">Bildschirmmitte</string>
+  <string name="pref_layout_playback_above_seekbar">Über der Fortschrittsleiste</string>
+  <string name="pref_layout_playback_below_seekbar">Unter der Fortschrittsleiste</string>
 </resources>

@@ -11,7 +11,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.ui.player.MpvConfigCache
 import app.gyrolet.mpvrx.ui.theme.MpvrxTheme
+import app.gyrolet.mpvrx.ui.tv.startForResultOrToast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,6 +58,10 @@ import java.util.Locale
  * never replaces the active app configuration.
  */
 class ExternalTextEditorActivity : AppCompatActivity() {
+  @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+  override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) =
+    startForResultOrToast(intent, requestCode) { target -> super.startActivityForResult(target, requestCode, options) }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     val sourceIntent = intent ?: run { finish(); return }
@@ -180,10 +185,10 @@ private fun ExternalTextEditorScreen(
             ?: error("The document provider does not permit writing")
         }
         if (text == savedText) dirty = false
-        Toast.makeText(context, "Saved $fileName", Toast.LENGTH_SHORT).show()
+        Toast.success(context, "Saved $fileName")
         if (closeOnSuccess && !dirty) onClose()
       } catch (e: Exception) {
-        Toast.makeText(context, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+        Toast.error(context, "Save failed: ${e.message}")
       } finally {
         busy = false
       }
@@ -229,10 +234,10 @@ private fun ExternalTextEditorScreen(
                   java.io.File(context.filesDir, "input.conf").writeText(importedText)
                 }
               }
-              Toast.makeText(context, "Imported $fileName", Toast.LENGTH_SHORT).show()
+              Toast.success(context, "Imported $fileName")
               onClose()
             } catch (e: Exception) {
-              Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+              Toast.error(context, "Import failed: ${e.message}")
             }
           }
         }) { Text("Import") }

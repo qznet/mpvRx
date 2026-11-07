@@ -44,7 +44,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import org.koin.compose.koinInject
@@ -62,11 +61,12 @@ val LocalMotionPolicy = staticCompositionLocalOf { MotionPolicy() }
 
 @Composable
 fun rememberMotionPolicy(): MotionPolicy {
+  val reducedByPreference by koinInject<PlayerPreferences>().reduceMotion.collectAsState()
   var animationsDisabled by remember { mutableStateOf(!ValueAnimator.areAnimatorsEnabled()) }
   LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
     animationsDisabled = !ValueAnimator.areAnimatorsEnabled()
   }
-  return MotionPolicy(reduceMotion = animationsDisabled)
+  return MotionPolicy(reduceMotion = animationsDisabled || reducedByPreference)
 }
 
 /**

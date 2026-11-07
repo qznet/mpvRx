@@ -9,7 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.browser.dialogs
 
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import app.gyrolet.mpvrx.presentation.components.AppDialogTextButton as TextButton
 import androidx.compose.runtime.Composable
@@ -64,9 +64,6 @@ import app.gyrolet.mpvrx.ui.player.controls.components.sheets.playerSheetSelecti
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun AddToPlaylistDialog(
@@ -441,9 +438,4 @@ private fun CreatePlaylistDialog(
     tonalElevation = 6.dp,
     shape = MaterialTheme.shapes.extraLarge,
   )
-}
-
-private fun formatDate(timestamp: Long): String {
-  val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-  return sdf.format(Date(timestamp))
 }

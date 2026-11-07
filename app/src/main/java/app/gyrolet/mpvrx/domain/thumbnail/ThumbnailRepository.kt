@@ -20,6 +20,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.LruCache
+import app.gyrolet.mpvrx.utils.memory.BitmapMemoryCache
 import app.gyrolet.mpvrx.data.network.client.NetworkMimeTypes
 import app.gyrolet.mpvrx.data.network.proxy.NetworkStreamingProxy
 import app.gyrolet.mpvrx.domain.archive.ZipArchiveMedia
@@ -100,7 +101,7 @@ class ThumbnailRepository(
     KoinJavaComponent.get<NetworkRepository>(NetworkRepository::class.java)
   }
 
-  private val memoryCache: LruCache<String, Bitmap>
+  private val memoryCache = BitmapMemoryCache<String>(heapDivisor = 8, maxSizeMiB = 48)
   private val localDiskDir = File(context.filesDir, "thumbnails/local").apply { mkdirs() }
   private val networkDiskDir = File(context.filesDir, "thumbnails/network").apply { mkdirs() }
   private val diskCacheLock = ReentrantReadWriteLock()
@@ -159,18 +160,6 @@ class ThumbnailRepository(
       extraBufferCapacity = 256,
     )
   val thumbnailReadyKeys: SharedFlow<String> = _thumbnailReadyKeys.asSharedFlow()
-
-  init {
-    val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024L).toInt()
-    val cacheSizeKb = maxMemoryKb / 6
-    memoryCache =
-      object : LruCache<String, Bitmap>(cacheSizeKb) {
-        override fun sizeOf(
-          key: String,
-          value: Bitmap,
-        ): Int = value.byteCount / 1024
-      }
-  }
 
   suspend fun getThumbnail(
     video: Video,
@@ -769,7 +758,11 @@ class ThumbnailRepository(
     generator: ThumbnailGenerator,
     artworkTier: Int = 0,
   ): Bitmap? {
-    if (ZipArchiveMedia.isPlaybackUri(video.uri.toString())) return null
+    if (ZipArchiveMedia.isPlaybackUri(video.uri.toString())) {
+      // MediaStore never indexes ZIP entries, so its strict mode has nothing to offer here.
+      if (generator == ThumbnailGenerator.MediaStore) return null
+      return generateArchiveThumbnail(video, widthPx, heightPx, artworkTier)
+    }
     val mode = browserPreferences.thumbnailMode.get()
     // Entries saved without media metadata (e.g. songs added to a playlist) arrive flagged as video.
     val canonicalPath = canonicalLocalPath(video)
@@ -944,6 +937,39 @@ class ThumbnailRepository(
         )
       } finally {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) retriever.close() else retriever.release()
+      }
+    }.getOrNull()
+
+  /** Decodes a stored ZIP entry straight from the archive; compressed entries get no thumbnail. */
+  private fun generateArchiveThumbnail(
+    video: Video,
+    widthPx: Int,
+    heightPx: Int,
+    artworkTier: Int,
+  ): Bitmap? =
+    runCatching {
+      ZipArchiveMedia.openStoredEntry(context, video.uri.toString())?.use { entry ->
+        val retriever = MediaMetadataRetriever()
+        try {
+          retriever.setDataSource(entry.fileDescriptor, entry.offset, entry.length)
+          if (artworkTier > 0) {
+            EmbeddedArtworkResolver.decodeRetrieverArtwork(retriever)?.scaleToThumbnailMax(artworkTier)
+          } else {
+            // The disk copy serves every card size, so decode at the same size as native frames.
+            val dimension = maxOf(widthPx, heightPx, MAX_THUMBNAIL_SIZE).coerceAtMost(thumbnailMaxSize())
+            extractFrameWithStrategy(
+              retriever = retriever,
+              strategy =
+                browserPreferences.thumbnailMode.get().toThumbnailStrategy(
+                  browserPreferences.thumbnailFramePosition.get(),
+                ),
+              targetWidth = dimension,
+              targetHeight = dimension,
+            )
+          }
+        } finally {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) retriever.close() else retriever.release()
+        }
       }
     }.getOrNull()
 
@@ -1559,33 +1585,6 @@ class ThumbnailRepository(
     return false
   }
 
-  /**
-   * Get a thumbnail for a folder using the first video in the folder.
-   * Returns null if the folder has no videos or thumbnail generation fails.
-   */
-  suspend fun getFolderThumbnail(
-    folderId: String,
-    videos: List<Video>,
-    widthPx: Int,
-    heightPx: Int,
-  ): Bitmap? =
-    withContext(Dispatchers.IO) {
-      if (videos.isEmpty()) return@withContext null
-
-      // Filter out network videos if network thumbnails are disabled
-      val filteredVideos =
-        if (appearancePreferences.showNetworkThumbnails.get()) {
-          videos
-        } else {
-          videos.filterNot { isNetworkUrl(it.path) }
-        }
-
-      if (filteredVideos.isEmpty()) return@withContext null
-
-      // Use the first video as the folder thumbnail
-      getThumbnail(filteredVideos.first(), widthPx, heightPx)
-    }
-
   private fun folderSignature(
     videos: List<Video>,
     widthPx: Int,
@@ -1614,7 +1613,7 @@ class ThumbnailRepository(
   private fun resolveLocalGenerationParallelism(): Int {
     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
     return thumbnailParallelism(
-      lowRam = activityManager?.isLowRamDevice == true,
+      lowRam = app.gyrolet.mpvrx.utils.device.DevicePerformance.isLowEnd || activityManager?.isLowRamDevice == true,
       memoryClassMb = activityManager?.memoryClass ?: 0,
       processorCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(1),
       sdkInt = Build.VERSION.SDK_INT,

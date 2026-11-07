@@ -345,12 +345,18 @@ private fun mediaDetailsToggles(
   val codecSupport by preferences.showCodecSupportIndicator.collectAsState()
   val date by preferences.showDateChip.collectAsState()
   val progress by preferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by preferences.grayscaleWatchedThumbnails.collectAsState()
   return buildList {
     if (includeDuration) {
       add(VisibilityToggle(stringResource(R.string.ui_duration), duration, preferences.showDurationField::set))
     }
     add(VisibilityToggle("Size", size, preferences.showSizeChip::set))
     if (!isAudio) {
+      add(VisibilityToggle(
+        stringResource(R.string.grayscale_watched_thumbnails),
+        grayscaleWatchedThumbnails,
+        preferences.grayscaleWatchedThumbnails::set,
+      ))
       add(VisibilityToggle("Resolution", resolution, preferences.showResolutionChip::set))
       add(VisibilityToggle("Framerate", framerate, preferences.showFramerateInResolution::set))
       add(VisibilityToggle("Subtitle Indicator", subtitles, preferences.showSubtitleIndicator::set))
@@ -741,6 +747,7 @@ fun VideoSortDialog(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by browserPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
@@ -971,6 +978,15 @@ fun VideoSortDialog(
             onCheckedChange = { browserPreferences.showVideoThumbnails.set(it) },
           ),
         )
+        if (!isAudio && !pickerMode) {
+          add(
+            VisibilityToggle(
+              label = stringResource(R.string.grayscale_watched_thumbnails),
+              checked = grayscaleWatchedThumbnails,
+              onCheckedChange = browserPreferences.grayscaleWatchedThumbnails::set,
+            ),
+          )
+        }
         add(
           VisibilityToggle(
             label = "Extension",
@@ -1121,15 +1137,12 @@ fun VideoSortDialog(
 
 private val ARCHIVE_UNSUPPORTED_TOGGLES =
   setOf(
-    "Thumbnails",
     "Duration",
     "Total Duration",
     "Resolution",
     "Framerate",
     "Codec support",
     "Subtitle",
-    "Progress Bar",
-    "Folder Thumbnails",
   )
 
 @Composable
@@ -1138,8 +1151,7 @@ fun FileSystemSortDialog(
   onDismiss: () -> Unit,
   isAtRoot: Boolean = true,
   onMetadataFieldEnabled: (() -> Unit)? = null,
-  // ZIP entries are read from the archive's directory only; they cannot be probed for media
-  // metadata or thumbnails, so options that depend on it would silently show nothing.
+  // ZIP entries support thumbnails, but have no scanned duration or codec metadata.
   isArchive: Boolean = false,
 ) {
   val browserPreferences = koinInject<BrowserPreferences>()
@@ -1162,6 +1174,7 @@ fun FileSystemSortDialog(
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by browserPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showSubtitleIndicator by browserPreferences.showSubtitleIndicator.collectAsState()
   val showExtensionField by browserPreferences.showExtensionField.collectAsState()
   val showDurationField by browserPreferences.showDurationField.collectAsState()
@@ -1332,6 +1345,13 @@ fun FileSystemSortDialog(
         )
         add(
           VisibilityToggle(
+            label = stringResource(R.string.grayscale_watched_thumbnails),
+            checked = grayscaleWatchedThumbnails,
+            onCheckedChange = browserPreferences.grayscaleWatchedThumbnails::set,
+          ),
+        )
+        add(
+          VisibilityToggle(
             label = "Full Name",
             checked = unlimitedNameLines,
             onCheckedChange = { appearancePreferences.unlimitedNameLines.set(it) },
@@ -1497,6 +1517,7 @@ fun FileSystemSortDialog(
 fun NetworkSortDialog(
   isOpen: Boolean,
   onDismiss: () -> Unit,
+  showSortOptions: Boolean = true,
 ) {
   val browserPreferences = koinInject<BrowserPreferences>()
   val appearancePreferences = koinInject<AppearancePreferences>()
@@ -1588,7 +1609,7 @@ fun NetworkSortDialog(
         else -> Pair("Asc", "Desc")
       }
     },
-    showSortOptions = true,
+    showSortOptions = showSortOptions,
     layoutModeSelector =
       ViewModeSelector(
         label = "Layout",

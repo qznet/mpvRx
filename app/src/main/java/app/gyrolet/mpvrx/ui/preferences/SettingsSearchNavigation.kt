@@ -47,6 +47,7 @@ data class SettingsSearchTarget(
   val screen: Screen,
   val key: String,
   val anchorItemIndex: Int? = null,
+  val requestId: Long = System.nanoTime(),
 )
 
 private data class SettingsSearchListAnchor(
@@ -72,6 +73,7 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.navbar_glow_title, itemIndex = 9),
         SettingsSearchListAnchor(titleRes = R.string.legacy_navigation_bar_title, itemIndex = 9),
         SettingsSearchListAnchor(titleRes = R.string.progressive_navigation_blur_title, itemIndex = 9),
+        SettingsSearchListAnchor(titleRes = R.string.connected_mini_player_navigation_title, itemIndex = 9),
         SettingsSearchListAnchor(titleRes = R.string.pref_appearance_unlimited_name_lines_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_appearance_show_unplayed_old_video_label_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_appearance_unplayed_old_video_days_title, itemIndex = 3),
@@ -109,7 +111,6 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_layout_bottom_right_controls, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_layout_bottom_left_controls, itemIndex = 1),
         SettingsSearchListAnchor(titleRes = R.string.pref_layout_portrait_bottom_controls, itemIndex = 3),
-        SettingsSearchListAnchor(titleRes = R.string.pref_appearance_hide_player_buttons_background_title, itemIndex = 7),
         SettingsSearchListAnchor(
           titleRes = R.string.pref_appearance_force_dark_player_buttons_background_title,
           itemIndex = 7,
@@ -164,7 +165,9 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_double_tap_left_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_double_tap_center_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_double_tap_right_title, itemIndex = 3),
+        SettingsSearchListAnchor(titleRes = R.string.pref_gesture_use_single_tap_for_left_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_use_single_tap_for_center_title, itemIndex = 3),
+        SettingsSearchListAnchor(titleRes = R.string.pref_gesture_use_single_tap_for_right_title, itemIndex = 3),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_media_previous, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_media_play, itemIndex = 5),
         SettingsSearchListAnchor(titleRes = R.string.pref_gesture_media_next, itemIndex = 5),
@@ -196,6 +199,7 @@ private val settingsSearchListAnchors: Map<Screen, List<SettingsSearchListAnchor
         SettingsSearchListAnchor(titleRes = R.string.pref_preferred_languages, itemIndex = 7),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_pitch_correction_title, itemIndex = 7),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_volume_normalization_title, itemIndex = 7),
+        SettingsSearchListAnchor(titleRes = R.string.pref_ignore_audio_focus_title, itemIndex = 7),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_background_playback_title, itemIndex = 7),
         SettingsSearchListAnchor(titleRes = R.string.pref_autoplay_next_audio_title, itemIndex = 7),
         SettingsSearchListAnchor(titleRes = R.string.pref_audio_drc_title, itemIndex = 7),
@@ -347,7 +351,7 @@ fun Modifier.settingsSearchTarget(
 fun Modifier.settingsSearchTarget(
   @StringRes titleRes: Int,
   fallback: Boolean = false,
-): Modifier = settingsSearchTarget("res:$titleRes", fallback)
+): Modifier = then(PlayerSettingKey(titleRes)).settingsSearchTarget("res:$titleRes", fallback)
 
 @Composable
 fun Modifier.highlightBackground(highlighted: Boolean): Modifier {

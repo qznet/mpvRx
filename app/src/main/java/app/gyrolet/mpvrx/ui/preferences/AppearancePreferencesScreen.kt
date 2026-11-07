@@ -10,7 +10,8 @@
 package app.gyrolet.mpvrx.ui.preferences
 
 import android.app.Activity
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
+import app.gyrolet.mpvrx.ui.components.AppToastType
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -82,7 +83,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import app.gyrolet.mpvrx.ui.preferences.components.AppListPreference as ListPreference
-import me.zhanghai.compose.preference.Preference
+import app.gyrolet.mpvrx.ui.preferences.components.PreferenceAction
+import app.gyrolet.mpvrx.ui.preferences.components.AppPreference as Preference
 import app.gyrolet.mpvrx.ui.preferences.components.AppSliderPreference as SliderPreference
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -326,6 +328,7 @@ object AppearancePreferencesScreen : Screen {
                     customThemes = pickerThemes,
                     selectedCustomThemeName = selectedCustomThemeName,
                     isDarkMode = isDarkMode,
+                    amoledMode = amoledMode,
                     onThemeSelected = { theme, position ->
                       if ((theme != appTheme || selectedCustomThemeName.isNotBlank()) && themeTransition?.isAnimating != true) {
                         themeTransition?.startTransition(position)
@@ -450,6 +453,7 @@ object AppearancePreferencesScreen : Screen {
                       )
                     },
                     onClick = { isAppFontSheetOpen = true },
+                    action = PreferenceAction.Dialog,
                   )
                   }
 
@@ -709,16 +713,18 @@ object AppearancePreferencesScreen : Screen {
                   onValueChange = { selected ->
                     if (!changingThumbnailGenerator && selected != thumbnailGenerator) {
                       changingThumbnailGenerator = true
+                      val progressToast = Toast.loading(context, context.getString(R.string.toast_updating_thumbnail_generator))
                       scope.launch {
                         try {
                           thumbnailRepository.setThumbnailGenerator(selected)
                           app.gyrolet.mpvrx.ui.player.MediaPlayerWidget.clearArtworkCache()
                           app.gyrolet.mpvrx.ui.player.MediaPlayerWidget.requestUpdate(context)
-                          Toast.makeText(context, thumbnailCacheClearedMessage, Toast.LENGTH_SHORT).show()
+                          progressToast.update(thumbnailCacheClearedMessage, AppToastType.Success)
                         } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                          progressToast.cancel()
                           throw cancelled
                         } catch (error: Exception) {
-                          Toast.makeText(context, context.getString(R.string.pref_thumbnail_cache_clear_failed, error.message ?: "Unknown error"), Toast.LENGTH_LONG).show()
+                          progressToast.update(context.getString(R.string.pref_thumbnail_cache_clear_failed, error.message ?: "Unknown error"), AppToastType.Error)
                         } finally {
                           changingThumbnailGenerator = false
                         }
@@ -838,6 +844,7 @@ object AppearancePreferencesScreen : Screen {
                     )
                   },
                   onClick = { isThumbnailParallelismDialogOpen = true },
+                  action = PreferenceAction.Dialog,
                   enabled = showVideoThumbnails,
                 )
               }
@@ -998,7 +1005,7 @@ object AppearancePreferencesScreen : Screen {
                     )
                   },
                   groupIndex = 0,
-                  groupSize = 5,
+                  groupSize = 6,
                 )
                 val quickPlayFabDirect by preferences.quickPlayFabDirect.collectAsState()
                 SwitchPreference(
@@ -1014,7 +1021,7 @@ object AppearancePreferencesScreen : Screen {
                     )
                   },
                   groupIndex = 1,
-                  groupSize = 5,
+                  groupSize = 6,
                 )
                 val navigationBarGlow by preferences.navigationBarGlow.collectAsState()
                 SwitchPreference(
@@ -1024,7 +1031,7 @@ object AppearancePreferencesScreen : Screen {
                   title = { Text(stringResource(R.string.navbar_glow_title)) },
                   summary = { Text(stringResource(R.string.navbar_glow_summary), color = MaterialTheme.colorScheme.outline) },
                   groupIndex = 2,
-                  groupSize = 5,
+                  groupSize = 6,
                 )
                 val legacyNavigationBar by preferences.legacyNavigationBar.collectAsState()
                 val progressiveNavigationBlur by preferences.progressiveNavigationBlur.collectAsState()
@@ -1043,7 +1050,7 @@ object AppearancePreferencesScreen : Screen {
                   title = { Text(stringResource(R.string.legacy_navigation_bar_title)) },
                   summary = { Text(stringResource(R.string.legacy_navigation_bar_summary), color = MaterialTheme.colorScheme.outline) },
                   groupIndex = 3,
-                  groupSize = 5,
+                  groupSize = 6,
                 )
                 SwitchPreference(
                   modifier = Modifier.settingsSearchTarget(R.string.progressive_navigation_blur_title),
@@ -1053,7 +1060,18 @@ object AppearancePreferencesScreen : Screen {
                   title = { Text(stringResource(R.string.progressive_navigation_blur_title)) },
                   summary = { Text(stringResource(R.string.progressive_navigation_blur_summary), color = MaterialTheme.colorScheme.outline) },
                   groupIndex = 4,
-                  groupSize = 5,
+                  groupSize = 6,
+                )
+                val connectedMiniPlayerNavigation by preferences.connectedMiniPlayerNavigation.collectAsState()
+                SwitchPreference(
+                  modifier = Modifier.settingsSearchTarget(R.string.connected_mini_player_navigation_title),
+                  value = connectedMiniPlayerNavigation && !legacyNavigationBar,
+                  onValueChange = preferences.connectedMiniPlayerNavigation::set,
+                  enabled = !legacyNavigationBar,
+                  title = { Text(stringResource(R.string.connected_mini_player_navigation_title)) },
+                  summary = { Text(stringResource(R.string.connected_mini_player_navigation_summary), color = MaterialTheme.colorScheme.outline) },
+                  groupIndex = 5,
+                  groupSize = 6,
                 )
               }
             }

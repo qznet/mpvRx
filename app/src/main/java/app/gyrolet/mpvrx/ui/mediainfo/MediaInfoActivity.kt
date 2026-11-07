@@ -13,7 +13,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,7 +38,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -666,7 +665,6 @@ class MediaInfoActivity : AppCompatActivity() {
       columns = 2,
       onClick = {
         SafeClipboard.copyPlainText(context, title, value)
-        Toast.makeText(context, context.getString(R.string.toast_copied_value, value), Toast.LENGTH_SHORT).show()
       },
       modifier = modifier,
     )
@@ -1195,12 +1193,6 @@ class MediaInfoActivity : AppCompatActivity() {
                   scope.launch {
                     val content = properties.joinToString("\n") { "${it.first}: ${it.second}" }
                     SafeClipboard.copyPlainText(context, title, content)
-                    Toast
-                      .makeText(
-                        context,
-                        context.getString(app.gyrolet.mpvrx.R.string.ui_copied_specifications_to_clipboard),
-                        Toast.LENGTH_SHORT,
-                      ).show()
                   }
                 },
             contentAlignment = Alignment.Center,
@@ -1427,12 +1419,6 @@ class MediaInfoActivity : AppCompatActivity() {
                     .clickable {
                       scope.launch {
                         SafeClipboard.copyPlainText(context, "Chapter timestamp", timestamp)
-                        Toast
-                          .makeText(
-                            context,
-                            context.getString(R.string.toast_copied_value, timestamp),
-                            Toast.LENGTH_SHORT,
-                          ).show()
                       }
                     }.padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.Top,
@@ -1587,7 +1573,6 @@ class MediaInfoActivity : AppCompatActivity() {
         TextButton(
           onClick = {
             SafeClipboard.copyPlainText(context, label, value)
-            Toast.makeText(context, context.getString(R.string.toast_copied_value, value), Toast.LENGTH_SHORT).show()
             onDismiss()
           },
         ) {
@@ -1716,11 +1701,6 @@ class MediaInfoActivity : AppCompatActivity() {
           Surface(
             onClick = {
               SafeClipboard.copyPlainText(context, "MediaInfo", rawText)
-              Toast.makeText(
-                context,
-                context.getString(R.string.ui_copied_specifications_to_clipboard),
-                Toast.LENGTH_SHORT,
-              ).show()
             },
             shape = MaterialTheme.shapes.large,
             color = colors.onPrimaryContainer.copy(alpha = 0.13f),

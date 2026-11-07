@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
+import app.gyrolet.mpvrx.presentation.components.AppComboBoxAnchor as ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -121,6 +121,8 @@ internal fun NetworkServerField(
         AppComboBoxOption(
           text = stringResource(if (scan.isScanning) R.string.network_server_scanning else R.string.network_server_scan),
           selected = false,
+          index = 0,
+          itemCount = if (suggestions.isEmpty()) 2 else 1,
           enabled = !scan.isScanning,
           leadingIcon = { Icon(Icons.RoundedFilled.Refresh, contentDescription = null, modifier = Modifier.size(20.dp)) },
           onClick = { query = ""; scanRequest++ },
@@ -129,6 +131,8 @@ internal fun NetworkServerField(
           AppComboBoxOption(
             text = stringResource(R.string.network_server_no_matches),
             selected = false,
+            index = 1,
+            itemCount = 2,
             enabled = false,
             onClick = {},
           )

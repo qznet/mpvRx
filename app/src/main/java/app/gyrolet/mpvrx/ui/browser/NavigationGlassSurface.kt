@@ -6,23 +6,23 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
+import app.gyrolet.mpvrx.ui.liquidglass.connectedGlassRim
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
@@ -35,12 +35,14 @@ internal fun NavigationGlassSurface(
   surfaceColor: Color,
   glowStrength: Float,
   modifier: Modifier = Modifier,
+  shape: Shape = CircleShape,
+  connectionProgress: Float = 0f,
 ) {
   if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
     Box(
-      modifier
+      modifier.clip(shape)
         .background(surfaceColor.copy(alpha = 1f))
-        .navigationGlassRim(glowStrength),
+        .navigationGlassRim(glowStrength, shape, connectionProgress),
     )
     return
   }
@@ -54,29 +56,19 @@ internal fun NavigationGlassSurface(
     }
   }
   val backing = if (backdrop != null) Modifier.hazeBlur(input = HazeInput.Sources(backdrop), style = blurStyle) else Modifier
-  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdrop != null && glowStrength > 0f) {
+  if (shape == CircleShape && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && backdrop != null && glowStrength > 0f) {
     RefractedNavigationGlass(surfaceColor, glowStrength, modifier, backing)
   } else {
-    Box(modifier.then(backing).background(surfaceColor.copy(alpha = if (backdrop != null) 0.55f else 0.82f))
-      .navigationGlassRim(glowStrength))
+    Box(modifier.clip(shape).then(backing).background(surfaceColor.copy(alpha = if (backdrop != null) 0.55f else 0.82f))
+      .navigationGlassRim(glowStrength, shape, connectionProgress))
   }
 }
 
-internal fun Modifier.navigationGlassRim(strength: Float = 1f): Modifier = drawWithCache {
-  val edge = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.27f), Color.White.copy(alpha = 0.02f)))
-  val strokeWidth = 0.75.dp.toPx()
-  onDrawWithContent {
-    drawContent()
-    drawRoundRect(
-      brush = edge,
-      topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
-      size = Size((size.width - strokeWidth).coerceAtLeast(0f), (size.height - strokeWidth).coerceAtLeast(0f)),
-      cornerRadius = CornerRadius((size.height - strokeWidth).coerceAtLeast(0f) / 2),
-      style = Stroke(strokeWidth),
-      alpha = strength,
-    )
-  }
-}
+internal fun Modifier.navigationGlassRim(
+  strength: Float = 1f,
+  shape: Shape = CircleShape,
+  connectionProgress: Float = 0f,
+): Modifier = connectedGlassRim(shape, joinedAtTop = true, strength = strength, connectionProgress = connectionProgress)
 
 internal fun Modifier.navigationAccentMask(brush: Brush): Modifier =
   graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {

@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,34 +34,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
-import app.gyrolet.mpvrx.preferences.PlayerButton
-import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.liquidglass.LiquidPillButton
-import app.gyrolet.mpvrx.ui.player.Panels
-import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
 import app.gyrolet.mpvrx.ui.player.Sheets
-import app.gyrolet.mpvrx.ui.player.VideoAspect
 import app.gyrolet.mpvrx.ui.player.controls.components.ControlsButton
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonBorderColor
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonContainerColor
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonContentColor
-import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.spacing
-import dev.vivvvek.seeker.Segment
-import org.koin.compose.koinInject
 
 @Composable
 fun TopLeftPlayerControlsLandscape(
   mediaTitle: String?,
-  hideBackground: Boolean,
   onBackPress: () -> Unit,
   onOpenSheet: (Sheets) -> Unit,
   viewModel: PlayerViewModel,
@@ -72,10 +62,11 @@ fun TopLeftPlayerControlsLandscape(
   translationStatus: String = "",
   translatingTrackName: String = "",
 ) {
-  PlayerButtonTheme(hideBackground) {
+  PlayerButtonTheme {
     val playlistModeEnabled = viewModel.hasPlaylistSupport()
     val clickEvent = LocalPlayerButtonsClickEvent.current
     val enableLiquidGlass = liquidGlassActive()
+    val titleHeight = playerTitleHeight(45.dp, MaterialTheme.typography.titleMedium.lineHeight)
 
     Column(
       modifier = Modifier.width(IntrinsicSize.Max),
@@ -87,8 +78,8 @@ fun TopLeftPlayerControlsLandscape(
         ControlsButton(
           icon = Icons.RoundedFilled.ArrowBack,
           onClick = onBackPress,
-          color = if (hideBackground) controlColor else playerButtonContentColor(),
-          modifier = Modifier.size(45.dp),
+          color = playerButtonContentColor(),
+          modifier = Modifier.size(48.dp),
         )
 
         Column {
@@ -101,22 +92,22 @@ fun TopLeftPlayerControlsLandscape(
                 }
               },
               isInteractive = playlistModeEnabled,
-              height = 45.dp,
+              height = titleHeight,
               horizontalPadding = MaterialTheme.spacing.medium,
             ) {
               Text(
                 mediaTitle ?: "",
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f, fill = false),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f, fill = false).playerTitleMarquee(),
               )
               viewModel.getPlaylistInfo()?.let { playlistInfo ->
                 Text(
                   " • $playlistInfo",
                   maxLines = 1,
                   overflow = TextOverflow.Visible,
-                  style = MaterialTheme.typography.bodySmall,
+                  style = MaterialTheme.typography.bodyMedium,
                 )
               }
             }
@@ -126,7 +117,7 @@ fun TopLeftPlayerControlsLandscape(
             Box(
               modifier =
                 Modifier
-                  .height(45.dp)
+                  .heightIn(min = titleHeight)
                   .clip(CircleShape)
                   .clickable(
                     interactionSource = titleInteractionSource,
@@ -140,46 +131,35 @@ fun TopLeftPlayerControlsLandscape(
             ) {
               Surface(
                 shape = CircleShape,
-                color =
-                  if (hideBackground) {
-                    Color.Transparent
-                  } else {
-                    playerButtonContainerColor()
-                  },
-                contentColor = if (hideBackground) controlColor else playerButtonContentColor(),
+                color = playerButtonContainerColor(),
+                contentColor = playerButtonContentColor(),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border =
-                  if (hideBackground) {
-                    null
-                  } else {
-                    BorderStroke(1.dp, playerButtonBorderColor())
-                  },
+                border = BorderStroke(1.dp, playerButtonBorderColor()),
               ) {
                 Row(
                   verticalAlignment = Alignment.CenterVertically,
                   modifier =
                     Modifier
+                      .heightIn(min = titleHeight)
                       .padding(
-                        start = MaterialTheme.spacing.medium,
-                        end = MaterialTheme.spacing.medium,
-                        top = MaterialTheme.spacing.small,
-                        bottom = MaterialTheme.spacing.small,
+                        horizontal = MaterialTheme.spacing.medium,
+                        vertical = 4.dp,
                       ),
                 ) {
                   Text(
                     mediaTitle ?: "",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f, fill = false).playerTitleMarquee(),
                   )
                   viewModel.getPlaylistInfo()?.let { playlistInfo ->
                     Text(
                       " • $playlistInfo",
                       maxLines = 1,
                       overflow = TextOverflow.Visible,
-                      style = MaterialTheme.typography.bodySmall,
+                      style = MaterialTheme.typography.bodyMedium,
                     )
                   }
                 }
@@ -254,164 +234,6 @@ fun TopLeftPlayerControlsLandscape(
             color = MaterialTheme.colorScheme.tertiary,
           )
         }
-      }
-    }
-  }
-}
-
-@Composable
-fun TopRightPlayerControlsLandscape(
-  buttons: List<PlayerButton>,
-  chapters: List<Segment>,
-  currentChapter: Int?,
-  isSpeedNonOne: Boolean,
-  currentZoom: Float,
-  aspect: VideoAspect,
-  mediaTitle: String?,
-  hideBackground: Boolean,
-  decoder: app.gyrolet.mpvrx.ui.player.Decoder,
-  playbackSpeed: Float,
-  onBackPress: () -> Unit,
-  onOpenSheet: (Sheets) -> Unit,
-  onOpenPanel: (Panels) -> Unit,
-  viewModel: PlayerViewModel,
-  activity: PlayerActivity,
-) {
-  PlayerButtonTheme(hideBackground) {
-    Row(
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-    ) {
-      buttons.forEach { button ->
-        RenderPlayerButton(
-          button = button,
-          chapters = chapters,
-          currentChapter = currentChapter,
-          isPortrait = false,
-          isSpeedNonOne = isSpeedNonOne,
-          currentZoom = currentZoom,
-          aspect = aspect,
-          mediaTitle = mediaTitle,
-          hideBackground = hideBackground,
-          decoder = decoder,
-          playbackSpeed = playbackSpeed,
-          onBackPress = onBackPress,
-          onOpenSheet = onOpenSheet,
-          onOpenPanel = onOpenPanel,
-          viewModel = viewModel,
-          activity = activity,
-          buttonSize = 45.dp,
-        )
-      }
-    }
-  }
-}
-
-@Composable
-fun BottomRightPlayerControlsLandscape(
-  buttons: List<PlayerButton>,
-  showVideoQualitySelector: Boolean,
-  chapters: List<Segment>,
-  currentChapter: Int?,
-  isSpeedNonOne: Boolean,
-  currentZoom: Float,
-  aspect: VideoAspect,
-  mediaTitle: String?,
-  hideBackground: Boolean,
-  decoder: app.gyrolet.mpvrx.ui.player.Decoder,
-  playbackSpeed: Float,
-  onBackPress: () -> Unit,
-  onOpenSheet: (Sheets) -> Unit,
-  onOpenPanel: (Panels) -> Unit,
-  viewModel: PlayerViewModel,
-  activity: PlayerActivity,
-  modifier: Modifier = Modifier,
-  horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-) {
-  PlayerButtonTheme(hideBackground) {
-    Row(
-      modifier = modifier,
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = horizontalArrangement,
-    ) {
-      buttons.forEach { button ->
-        RenderPlayerButton(
-          button = button,
-          chapters = chapters,
-          currentChapter = currentChapter,
-          isPortrait = false,
-          isSpeedNonOne = isSpeedNonOne,
-          currentZoom = currentZoom,
-          aspect = aspect,
-          mediaTitle = mediaTitle,
-          hideBackground = hideBackground,
-          decoder = decoder,
-          playbackSpeed = playbackSpeed,
-          onBackPress = onBackPress,
-          onOpenSheet = onOpenSheet,
-          onOpenPanel = onOpenPanel,
-          viewModel = viewModel,
-          activity = activity,
-          buttonSize = 45.dp,
-        )
-      }
-      if (showVideoQualitySelector) {
-        ControlsButton(
-          icon = Icons.RoundedFilled.Hd,
-          onClick = { onOpenSheet(Sheets.VideoQuality) },
-          title = stringResource(R.string.player_video_quality_button),
-          modifier = Modifier.size(45.dp),
-        )
-      }
-    }
-  }
-}
-
-@Composable
-fun BottomLeftPlayerControlsLandscape(
-  buttons: List<PlayerButton>,
-  chapters: List<Segment>,
-  currentChapter: Int?,
-  isSpeedNonOne: Boolean,
-  currentZoom: Float,
-  aspect: VideoAspect,
-  mediaTitle: String?,
-  hideBackground: Boolean,
-  decoder: app.gyrolet.mpvrx.ui.player.Decoder,
-  playbackSpeed: Float,
-  onBackPress: () -> Unit,
-  onOpenSheet: (Sheets) -> Unit,
-  onOpenPanel: (Panels) -> Unit,
-  viewModel: PlayerViewModel,
-  activity: PlayerActivity,
-  modifier: Modifier = Modifier,
-) {
-  PlayerButtonTheme(hideBackground) {
-    Row(
-      modifier = modifier,
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.extraSmall),
-    ) {
-      buttons.forEach { button ->
-        RenderPlayerButton(
-          button = button,
-          chapters = chapters,
-          currentChapter = currentChapter,
-          isPortrait = false,
-          isSpeedNonOne = isSpeedNonOne,
-          currentZoom = currentZoom,
-          aspect = aspect,
-          mediaTitle = mediaTitle,
-          hideBackground = hideBackground,
-          decoder = decoder,
-          playbackSpeed = playbackSpeed,
-          onBackPress = onBackPress,
-          onOpenSheet = onOpenSheet,
-          onOpenPanel = onOpenPanel,
-          viewModel = viewModel,
-          activity = activity,
-          buttonSize = 45.dp,
-        )
       }
     }
   }

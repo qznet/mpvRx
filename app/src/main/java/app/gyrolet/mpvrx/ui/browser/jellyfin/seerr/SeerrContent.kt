@@ -10,7 +10,7 @@
 package app.gyrolet.mpvrx.ui.browser.jellyfin.seerr
 
 import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -62,7 +62,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
-import app.gyrolet.mpvrx.domain.seerr.MediaType
 import app.gyrolet.mpvrx.presentation.components.pullrefresh.PullRefreshBox
 import app.gyrolet.mpvrx.ui.browser.components.BrowserTopBar
 import app.gyrolet.mpvrx.ui.components.InlineSearchBar
@@ -195,6 +194,7 @@ fun SeerrContent(
 
                 if (avatarUrl != null) {
                   app.gyrolet.mpvrx.presentation.components.RemoteImage(
+                    maxDimensionPx = 256,
                     url = avatarUrl,
                     contentDescription = stringResource(R.string.seerr_connect_server),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,

@@ -56,10 +56,8 @@
   <string name="pref_appearance_ui_scale_restart_now">立即重启</string>
   <string name="pref_appearance_unlimited_name_lines_title">显示完整名称</string>
   <string name="pref_appearance_unlimited_name_lines_summary">完整显示文件夹和视频名称，不截断</string>
-  <string name="pref_appearance_hide_player_buttons_background_title">隐藏播放器按钮背景</string>
   <string name="pref_appearance_force_dark_player_buttons_background_title">始终使用深色播放器按钮背景</string>
   <string name="pref_appearance_force_dark_player_buttons_background_summary">在浅色、深色和自动主题下始终保持播放器控制按钮为深色背景</string>
-  <string name="pref_appearance_hide_player_buttons_background_summary">隐藏所有播放器控制按钮的背景</string>
   <string name="pref_appearance_category_file_browser">文件浏览器</string>
   <string name="pref_appearance_category_thumbnails">缩略图</string>
   <string name="pref_appearance_category_navigation">导航</string>
@@ -162,7 +160,7 @@
   <string name="pref_player_show_chapter_indicators_title">在进度条上显示章节标记</string>
   <string name="pref_player_show_chapter_indicators_summary">沿进度条直观区分各个章节。</string>
   <!-- Gesture Preferences Hardcoded -->
-  <string name="pref_double_tap_seek_area_width_title">双击快进区域宽度</string>
+  <string name="pref_double_tap_seek_area_width_title">点击手势区域宽度</string>
   <!-- Advanced Preferences Hardcoded -->
   <string name="pref_export_settings_title">导出设置</string>
   <string name="pref_export_settings_summary">将设置导出到 XML 文件</string>
@@ -196,7 +194,7 @@
   <string name="pref_player_orientation_reverse_landscape">反向横屏</string>
   <string name="pref_player_orientation_sensor_landscape">传感器横屏</string>
   <string name="pref_player_save_position_on_quit">退出时保存位置</string>
-  <string name="pref_player_double_tap_seek_duration">双击快进时长</string>
+  <string name="pref_player_double_tap_seek_duration">点击快进时长</string>
   <string name="pref_player_custom_skip_duration_title">自定义跳过时长</string>
   <string name="pref_player_custom_skip_duration_summary">自定义跳过按钮向前跳过的时长</string>
   <string name="pref_player_seeking_title">定位播放</string>
@@ -206,8 +204,6 @@
   <string name="pref_player_gestures_volume">音量手势</string>
   <string name="pref_player_gestures_pinch_to_zoom">双指捏合缩放</string>
   <string name="pref_player_gestures_pinch_to_zoom_subtitles">双指捏合缩放字幕</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe">双指滑动调节速度</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe_summary">双指上下滑动，以 0.25x 为步长在 0.5x 到 4x 之间调节播放速度</string>
   <string name="pref_subtitles_secondary_pinch_zoom">双指捏合缩放次要字幕</string>
   <string name="pref_subtitles_secondary_pinch_zoom_summary">捏合缩放主要字幕时，同时缩放次要字幕</string>
   <string name="pref_player_gestures_swipe_subtitles_to_seek_dialog">滑动字幕打开定位对话框</string>
@@ -222,18 +218,24 @@
   <string name="pref_player_controls_show_loading_circle">显示加载圆圈</string>
   <string name="pref_player_display_show_status_bar">显示带控制项的系统状态栏</string>
   <string name="pref_gesture">手势</string>
-  <string name="pref_gesture_summary">双击、媒体控制</string>
-  <string name="pref_gesture_double_tap_title">双击</string>
+  <string name="pref_gesture_summary">单击/双击、媒体控制</string>
+  <string name="pref_gesture_double_tap_title">点击手势</string>
   <string name="pref_gesture_double_tap_none">无</string>
   <string name="pref_gesture_double_tap_seek">定位播放</string>
   <string name="pref_gesture_double_tap_play">播放/暂停</string>
   <string name="pref_gesture_double_tap_custom">自定义</string>
   <string name="pref_gesture_double_tap_left_title">双击（左侧）</string>
+  <string name="pref_gesture_single_tap_left_title">单击（左侧）</string>
   <string name="pref_gesture_double_tap_center_title">双击（中间）</string>
   <string name="pref_gesture_single_tap_center_title">单击（中间）</string>
   <string name="pref_gesture_double_tap_right_title">双击（右侧）</string>
-  <string name="pref_gesture_use_single_tap_for_center_title">中间手势使用单击</string>
-  <string name="pref_gesture_use_single_tap_for_center_summary">中间区域的手势（如播放/暂停）使用单击，而不是双击。</string>
+  <string name="pref_gesture_single_tap_right_title">单击（右侧）</string>
+  <string name="pref_gesture_use_single_tap_for_left_title">左侧单击</string>
+  <string name="pref_gesture_use_single_tap_for_center_title">中央单击</string>
+  <string name="pref_gesture_use_single_tap_for_right_title">右侧单击</string>
+  <string name="pref_gesture_use_single_tap_for_left_summary">轻点一次而非两次，即可执行左侧操作。</string>
+  <string name="pref_gesture_use_single_tap_for_center_summary" formatted="false">轻点一次中央区域（默认宽度为30%，高度为30%）。中央区域的其他点击可显示或隐藏播放控件。</string>
+  <string name="pref_gesture_use_single_tap_for_right_summary">轻点一次而非两次，即可执行右侧操作。</string>
   <string name="pref_gesture_center_vertical_subtitle_position_title">拖动以移动字幕</string>
   <string name="pref_gesture_center_vertical_subtitle_position_summary">长按屏幕中央后上下拖动，可移动主字幕。直接长按任意字幕后拖动，可单独移动该字幕轨道。普通滑动仍会打开播放列表。</string>
   <string name="pref_gesture_double_tap_custom_info">可在 input.conf 中使用以下按键代码为这些手势绑定自定义操作：
@@ -426,9 +428,6 @@
   <string name="player_sheets_sub_misc_card_title">其他</string>
   <string name="player_sheets_sub_delay_card_title">字幕延迟</string>
   <string name="player_sheets_sub_delay_card_delay">延迟</string>
-  <string name="player_sheets_delay_quick_sync_summary">快速同步会设定一个绝对偏移量，因此重复点击同一个按钮会保持相同的数值。</string>
-  <string name="player_sheets_delay_offset_seconds">%1$+d 秒</string>
-  <string name="player_sheets_delay_offset_zero_seconds">0 秒</string>
   <string name="player_sheets_sub_delay_card_speed">速度</string>
   <string name="player_sheets_sub_delay_subtitle_voice_heard">听到人声</string>
   <string name="player_sheets_sub_delay_subtitle_text_seen">看到文字</string>
@@ -487,7 +486,7 @@
   <string name="pref_player_display_reduce_player_animation">减少播放器动画</string>
   <!-- Animation settings -->
   <string name="pref_player_display_hide_player_control_time">隐藏播放器控制时间</string>
-  <string name="show_splash_ovals_on_double_tap_to_seek">双击定位播放时显示波纹</string>
+  <string name="show_splash_ovals_on_double_tap_to_seek">点击定位播放时显示波纹</string>
   <string name="show_time_on_double_tap_to_seek">显示定位时间</string>
   <string name="player_sheets_frame_navigation_title">逐帧导航</string>
   <string name="player_sheets_frame_navigation_include_subtitles">截图中包含字幕</string>
@@ -497,6 +496,8 @@
     <item quantity="other">%1$d 秒</item>
   </plurals>
   <!-- Background Playback -->
+  <string name="pref_ignore_audio_focus_title">忽略音频焦点</string>
+  <string name="pref_ignore_audio_focus_summary">允许音频和视频与其他应用同时播放，不因音频焦点变化暂停或降低音量</string>
   <string name="pref_audio_background_playback_title">后台播放（音频播放器）</string>
   <string name="pref_audio_background_playback_summary">在离开音频播放器或关闭屏幕时保持音频播放</string>
   <string name="pref_audio_mini_player_track_switching_title">在迷你播放器中切歌</string>
@@ -755,7 +756,7 @@
   <string name="pref_config_cache_cleared_toast">已清除配置缓存</string>
   <string name="pref_thumbnail_cache_confirm_title">清除缩略图缓存？</string>
   <string name="pref_thumbnail_cache_confirm_subtitle">这将从存储空间和内存中删除缓存的缩略图。</string>
-  <string name="pref_section_logging">日志</string>
+  <string name="pref_section_logging">日志、诊断与隐私</string>
   <string name="pref_export_failed_toast">导出失败：%1$s</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -816,7 +817,6 @@
   <!-- Folders Preferences                                        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="pref_media_library_section">媒体库</string>
-  <string name="pref_hidden_folders_section">隐藏文件夹</string>
   <string name="pref_clear_content_desc">清除</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -847,10 +847,6 @@
   <string name="pref_config_cache_size">大小：%1$s</string>
   <string name="pref_thumbnail_cache_summary">删除所有缓存的视频缩略图（浏览文件夹时将重新生成）</string>
   <string name="pref_thumbnail_cache_size">大小：%1$s</string>
-  <string name="pref_clear_animated_artwork_cache_title">清除动态专辑封面缓存</string>
-  <string name="pref_clear_animated_artwork_cache_summary">删除已下载的动态专辑封面（显示时会重新下载）</string>
-  <string name="pref_animated_artwork_cache_size">大小：%1$s</string>
-  <string name="pref_animated_artwork_cache_cleared">动态专辑封面缓存已清除</string>
   <string name="pref_fonts_cache_size">大小：%1$s · %2$d 个字体</string>
   <string name="pref_failed_to_clear">清除失败：%1$s</string>
   <string name="pref_export_failed">导出失败：%1$s</string>
@@ -1047,6 +1043,9 @@
   <string name="player_horizontal_flip_off">水平翻转已关闭</string>
   <string name="player_vertical_flip_on">垂直翻转已开启</string>
   <string name="player_vertical_flip_off">垂直翻转已关闭</string>
+  <string name="player_hwplus_unsupported">HW+ 模式不支持%1$s。请切换到 HW 或 SW 解码后使用。</string>
+  <string name="player_hwplus_use_hw">使用 HW</string>
+  <string name="player_hwplus_cpu_deband">CPU 去色带</string>
   <string name="btn_label_back">返回箭头</string>
   <string name="btn_label_title">视频标题</string>
   <string name="btn_label_bookmarks">章节/书签</string>
@@ -1462,8 +1461,6 @@
   <string name="ui_no_storage_location_configured">未配置存储位置</string>
   <string name="ui_script_file_not_found">未找到脚本文件</string>
   <string name="ui_search_models">搜索模型...</string>
-  <string name="ui_portrait_playback_buttons">竖屏播放按钮</string>
-  <string name="ui_landscape_playback_buttons">横屏播放按钮</string>
   <string name="ui_portrait_seekbar_position">竖屏进度条位置</string>
   <string name="ui_landscape_seekbar_position">横屏进度条位置</string>
   <string name="pref_player_buttons_opacity">播放器按钮背景不透明度</string>
@@ -1525,7 +1522,6 @@
   <string name="oss_androidx_documentfile_description">用于文档存储访问的抽象层。</string>
   <string name="oss_androidx_media_description">Android 媒体会话和播放 API。</string>
   <string name="oss_androidx_palette_description">从图像中提取主要和鲜明的调色板。</string>
-  <string name="oss_androidx_profile_installer_description">预取类和方法以加快应用启动速度。</string>
   <string name="oss_google_material_description">Material Design 组件和主题库。</string>
   <string name="oss_google_cast_description">用于媒体投屏的 Chromecast 框架。</string>
   <string name="oss_material_symbols_description">用于 Compose 的 Material Symbols 图标集。</string>
@@ -1654,7 +1650,6 @@
   <string name="secure_folder_move_items_subtitle">它们将从列表和应用其他位置消失，直到恢复。</string>
   <string name="secure_folder_moved_success">已将 %1$d 个文件移动到安全文件夹</string>
   <string name="secure_folder_moved_partial">已移动 %1$d 个文件，%2$d 个失败</string>
-  <string name="secure_folder_move_failed">无法将文件移动到安全文件夹</string>
   <string name="secure_folder_error_incorrect_pin">PIN码错误</string>
   <string name="secure_folder_error_pins_dont_match">PIN码不匹配</string>
   <string name="secure_folder_error_answer_question">请回答安全问题</string>
@@ -1891,9 +1886,6 @@
   <string name="ui_yt_dlp_commit">提交 %1$s</string>
   <string name="ui_version_unavailable">版本不可用</string>
   <string name="ui_update_channel">更新渠道</string>
-  <string name="ui_stable_releases">稳定版</string>
-  <string name="ui_preview_builds">预览版（Nightly）</string>
-  <string name="ui_preview_builds_summary">预览版是根据 mpvRx 最新更改发布的签名测试版本，可能不稳定。</string>
   <string name="update_whats_new">新增内容</string>
   <string name="update_no_release_notes">未提供发行说明。</string>
   <string name="update_ready_to_install">可以安装</string>
@@ -2083,8 +2075,6 @@
   <string name="pref_appearance_custom_wallpaper_transparency">透明度</string>
   <string name="pref_folders_add_marker">添加标记文件</string>
   <string name="pref_folders_add_marker_title">添加隐藏文件夹标记</string>
-  <string name="pref_folders_hidden_markers_empty">尚未配置标记文件。仍会包含名称以点开头的文件夹。</string>
-  <string name="pref_folders_hidden_markers_summary">包含这些文件的文件夹及其子文件夹都会被纳入。名称以点开头的文件夹始终会被纳入。</string>
   <string name="pref_folders_hidden_markers_title">标记文件</string>
   <string name="pref_folders_include_hidden_summary">扫描名称以点开头的文件夹，以及包含所选标记文件的文件夹中的视频。</string>
   <string name="pref_folders_include_hidden_title">包含隐藏的媒体文件夹</string>
@@ -2273,7 +2263,6 @@
   <string name="snapshot_delete_title">删除快照？</string>
   <string name="snapshot_delete_selected_title">删除 %1$d 个快照？</string>
   <string name="snapshot_delete_message">仅从应用中移除记录，图片仍保留在相册中。</string>
-  <string name="snapshot_delete">删除</string>
   <string name="snapshot_remove">移除</string>
 
   <string name="snapshot_root">根目录</string>
@@ -2343,7 +2332,9 @@
   <plurals name="onboarding_configuration_restored_partial">
     <item quantity="other">已从 %1$s 恢复设置，跳过了 %2$d 个损坏的条目。下载将使用 Configuration/Downloads。</item>
   </plurals>
-  <string name="settings_restore_reverted">从 %1$s 恢复的设置导致应用崩溃，因此已撤销。</string>
+  <plurals name="pref_import_skipped_invalid">
+    <item quantity="other">已跳过 %1$d 项无效设置</item>
+  </plurals>
   <string name="onboarding_configuration_restore_failed">无法完成文件夹设置：%1$s</string>
   <string name="navbar_glow_title">玻璃辉光</string>
   <string name="navbar_glow_summary">显示导航栏边缘光照和触摸辉光</string>
@@ -2565,20 +2556,13 @@
   <string name="app_icon_create_custom_shortcut">将精确的自定义图标添加到主屏幕</string>
   <string name="pref_experimental_badge">实验性</string>
   <string name="pref_liquid_glass_experimental_note">液态玻璃效果仍处于实验阶段，显示效果可能因设备而异。</string>
-  <string name="pref_hidden_scan_per_mode_summary">选择各主页模式是否扫描由标记文件隐藏或名称以点开头的文件夹。关闭后，浏览时也会跳过这些内容。上方开关用于全局启用隐藏媒体。</string>
-  <string name="pref_hidden_scan_scoped_summary">每种视图只能在您已授予 Android 访问权限的文件夹内包含或跳过点开头及标记隐藏的文件夹。未选择的文件夹仍无法访问。</string>
   <string name="pref_hidden_scan_library">媒体库</string>
   <string name="pref_hidden_scan_tree">树状视图</string>
   <string name="pref_hidden_scan_folders">文件夹</string>
-  <string name="pref_hidden_scan_marked">扫描由标记隐藏的文件夹</string>
-  <string name="pref_hidden_scan_marked_summary">包含 .nomedia 或列表中其他标记的文件夹</string>
-  <string name="pref_hidden_scan_single_marker_summary">在此视图中包含带有此标记的文件夹</string>
-  <string name="pref_hidden_scan_dot_summary">名称以点开头的文件夹，例如 .Videos</string>
   <string name="ambient_cinema">影院</string>
   <string name="ambient_echo">回声</string>
   <string name="ambient_mirror">镜像</string>
   <string name="ambient_ambilight">流光溢彩</string>
-  <string name="ambient_fx_auto_hint">此模式完全自动运行。为获得最佳视觉效果，参数已固定，无法调整。</string>
   <string name="app_icon_bg_crimson">深红</string>
   <string name="app_icon_bg_rose">玫瑰粉</string>
   <string name="app_icon_bg_peach">蜜桃色</string>
@@ -2604,7 +2588,6 @@
   <string name="pref_nav_home_title">主页 / 文件</string>
   <string name="pref_nav_home_summary">浏览本地文件夹和文件（始终可用）</string>
   <string name="pref_nav_actions_section">导航操作</string>
-  <string name="pref_about_playback_libraries">播放库</string>
   <string name="color_picker_field">选色器</string>
   <string name="color_picker_sliders">滑块</string>
   <string name="color_picker_field_description">饱和度和亮度。使用滑块进行精细调整。</string>
@@ -2614,15 +2597,12 @@
   <string name="app_icon_custom_background">自定义背景</string>
   <string name="app_icon_custom_background_hint">选择一种颜色。Android 会在应用抽屉中使用最接近的内置图标。您选择的精确颜色可保存为主屏幕图标，也可用于最近使用的应用。</string>
   <string name="app_icon_custom_logo_hint">选择要叠加在自定义背景上的任意徽标。</string>
-  <string name="app_icon_shortcut_preview">主屏幕快捷方式预览</string>
   <string name="app_icon_custom_requested">您的设计</string>
   <string name="app_icon_custom_native_match">实际启动器图标</string>
   <string name="app_icon_use_wallpaper_colors">改用壁纸颜色</string>
-  <string name="app_icon_shortcut_apply">添加或更新快捷方式</string>
   <string name="app_icon_shortcut_requested">请求已发送。请在启动器中确认添加快捷方式。</string>
   <string name="app_icon_shortcut_updated">主屏幕快捷方式已更新</string>
   <string name="app_icon_shortcut_unsupported">此启动器不支持添加主屏幕快捷方式。</string>
-  <string name="app_icon_shortcut_failed">无法保存快捷方式，请重试。</string>
   <string name="color_picker_wheel">色轮</string>
   <string name="color_picker_brightness">亮度</string>
     <string name="only_for_video_list">仅用于视频列表</string>
@@ -2761,6 +2741,9 @@
   <string name="jellyfin_details">详情</string>
   <string name="jellyfin_trailer">预告片</string>
   <string name="jellyfin_open_trailer_error">没有可打开预告片的应用。</string>
+  <string name="no_app_for_action">此设备上没有可以打开此项的应用。</string>
+  <string name="tv_picker_file_exists">已存在同名文件。</string>
+  <string name="tv_picker_no_access">mpvRx 无法访问此位置。</string>
   <string name="jellyfin_libraries">媒体库</string>
   <string name="jellyfin_continue_watching">继续观看</string>
   <string name="jellyfin_latest_movies">最新电影</string>
@@ -2781,7 +2764,6 @@
   <string name="jellyfin_more_like_this">更多类似内容</string>
   <string name="jellyfin_watched">已观看</string>
   <string name="jellyfin_search_hint">搜索电影、剧集和单集…</string>
-  <string name="pref_scan_filters">扫描过滤</string>
   <string name="pref_filter_short_videos">过滤短视频</string>
   <string name="pref_filter_short_videos_summary">扫描时忽略短于所选时长的视频</string>
   <string name="pref_filter_small_files">过滤小文件</string>
@@ -2832,7 +2814,10 @@
   <!-- Folder filters and clip export tracks -->
   <string name="clip_audio_track">音轨</string>
   <string name="clip_subtitle_track">字幕轨道</string>
-  <string name="clip_burn_subtitles">将字幕烧录到视频中</string>
+  <string name="clip_include_subtitles">在视频中包含字幕</string>
+  <string name="clip_subtitle_read_failed">无法读取所选字幕。</string>
+  <string name="clip_subtitle_unsupported">无法在视频中包含此字幕格式。</string>
+  <string name="clip_subtitle_too_large">字幕文件过大，无法包含在片段中。</string>
   <string name="clip_track_auto_off">自动 / 关闭</string>
   <string name="pref_blacklist_count">黑名单中有 %1$d 个文件夹</string>
   <string name="pref_whitelist_disabled">白名单已停用</string>
@@ -2850,4 +2835,19 @@
   <string name="clip_quick_length">快速时长</string>
   <string name="clip_length_seconds">%1$d秒</string>
   <string name="clip_crop_reset">使用完整画面</string>
+  <string name="pref_layout_seekbar_above">进度条在上方</string>
+  <string name="pref_layout_seekbar_below">进度条在下方</string>
+  <string name="player_layout_preset_title">播放布局</string>
+  <string name="player_layout_preview_hint">仅供预览，更改会立即保存。</string>
+  <string name="player_layout_shared_landscape_hint">所有横屏操作区域共用此布局。</string>
+  <string name="pref_audio_spatial_title">空间音频</string>
+  <string name="pref_audio_spatial_summary">拓宽立体声音场，带来更沉浸的听觉体验</string>
+  <string name="pref_measure_enabled_title">与 Measure 共享诊断信息</string>
+  <string name="pref_measure_enabled_summary">选择向 Measure 发送崩溃、ANR、性能指标和会话活动。默认关闭。</string>
+  <string name="pref_measure_not_configured">诊断不可用：此版本未配置 Measure API 密钥。</string>
+  <string name="pref_layout_portrait_playback_position">竖屏播放控件</string>
+  <string name="pref_layout_landscape_playback_position">横屏播放控件</string>
+  <string name="pref_layout_playback_center">屏幕中央</string>
+  <string name="pref_layout_playback_above_seekbar">进度条上方</string>
+  <string name="pref_layout_playback_below_seekbar">进度条下方</string>
 </resources>

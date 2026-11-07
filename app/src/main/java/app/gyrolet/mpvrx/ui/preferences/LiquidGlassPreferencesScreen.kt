@@ -73,6 +73,7 @@ object LiquidGlassPreferencesScreen : Screen {
   override fun Content() {
     val preferences = koinInject<AppearancePreferences>()
     val backstack = LocalBackStack.current
+    val playerPanel = LocalPlayerSettingsPanel.current
     val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val enabled by preferences.liquidGlassEnabled.collectAsState()
     val glassInHdr by preferences.liquidGlassInHdr.collectAsState()
@@ -92,6 +93,7 @@ object LiquidGlassPreferencesScreen : Screen {
     }
 
     Scaffold(
+      contentWindowInsets = settingsContentWindowInsets(),
       topBar = {
         SettingsTopAppBar(
           title = stringResource(R.string.pref_appearance_category_liquid_glass),
@@ -107,7 +109,7 @@ object LiquidGlassPreferencesScreen : Screen {
         ) {
           val compactPreview = maxHeight < 420.dp
           Column(Modifier.fillMaxSize()) {
-            LiquidGlassPreview(
+            if (!LocalPlayerSettingsPanel.current) LiquidGlassPreview(
               enabled = enabled && supported,
               height = if (compactPreview) 112.dp else 200.dp,
               compact = compactPreview,
@@ -142,6 +144,7 @@ object LiquidGlassPreferencesScreen : Screen {
                   )
                 }
               }
+              if (!playerPanel) {
               item {
                 PreferenceSectionHeader(title = stringResource(R.string.pref_section_general))
               }
@@ -180,6 +183,7 @@ object LiquidGlassPreferencesScreen : Screen {
                     modifier = Modifier.settingsSearchTarget(R.string.pref_liquid_glass_in_hdr_title),
                   )
                 }
+              }
               }
               liquidGlassPreferences(preferences, enabled = enabled && supported)
             }

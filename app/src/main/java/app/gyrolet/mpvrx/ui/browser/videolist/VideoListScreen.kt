@@ -11,7 +11,7 @@ package app.gyrolet.mpvrx.ui.browser.videolist
 
 import android.content.Intent
 import android.os.Environment
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
@@ -76,7 +75,6 @@ import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.GesturePreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
-import app.gyrolet.mpvrx.preferences.SortOrder
 import app.gyrolet.mpvrx.preferences.SecureFolderPreferences
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -314,7 +312,7 @@ data class VideoListScreen(
       coroutineScope.launch {
         val result = secureFolderRepository.moveIn(context, selectedVideos)
         moveToSecureProgressOpen.value = false
-        selectionManager.clear()
+        if (result.isSuccess) selectionManager.clear()
         viewModel.refresh()
         result
           .onSuccess { batch ->
@@ -325,8 +323,11 @@ data class VideoListScreen(
                 context.getString(R.string.secure_folder_moved_partial, batch.succeededIds.size, batch.failedIds.size)
               }
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-          }.onFailure {
-            Toast.makeText(context, context.getString(R.string.secure_folder_move_failed), Toast.LENGTH_SHORT).show()
+          }.onFailure { error ->
+            Toast.error(context, context.getString(
+              R.string.secure_folder_move_failed_details,
+              error.localizedMessage ?: context.getString(R.string.generic_unknown_error),
+            ))
           }
       }
     }
@@ -472,12 +473,8 @@ data class VideoListScreen(
               onClick = {
                 coroutineScope.launch {
                   if (scopedFolder) {
-                    val folderPaths = sortedVideos.mapTo(hashSetOf()) { it.path }
-                    val lastPlayed =
-                      RecentlyPlayedOps.getRecentlyPlayed(limit = 100)
-                        .firstOrNull { it.filePath in folderPaths }
-                    val startIndex =
-                      sortedVideos.indexOfFirst { it.path == lastPlayed?.filePath }.coerceAtLeast(0)
+                    val lastPlayed = RecentlyPlayedOps.lastPlayedOf(sortedVideos)
+                    val startIndex = lastPlayed?.let(sortedVideos::indexOf)?.coerceAtLeast(0) ?: 0
                     if (playerPreferences.shouldBuildAutomaticQueue(sortedVideos[startIndex].isAudio)) {
                       MediaUtils.playFiles(sortedVideos, context, startIndex, "video_list")
                     } else {
@@ -485,22 +482,12 @@ data class VideoListScreen(
                     }
                     return@launch
                   }
-                  val folderPath =
-                    sortedVideosWithInfo
-                      .firstOrNull()
-                      ?.video
-                      ?.path
-                      ?.let { File(it).parent } ?: ""
-                  val recentlyPlayedVideos = RecentlyPlayedOps.getRecentlyPlayed(limit = 100)
-                  val lastPlayedInFolder =
-                    recentlyPlayedVideos.firstOrNull {
-                      File(it.filePath).parent == folderPath
-                    }
+                  val lastPlayedInFolder = RecentlyPlayedOps.lastPlayedOf(sortedVideos)
 
                   if (archiveFolder) {
                     MediaUtils.playFiles(sortedVideos, context, launchSource = "zip_folder")
                   } else if (lastPlayedInFolder != null) {
-                    MediaUtils.playFile(lastPlayedInFolder.filePath, context, "recently_played_button")
+                    MediaUtils.playFile(lastPlayedInFolder, context, "recently_played_button")
                   } else {
                     MediaUtils.playFile(sortedVideosWithInfo.first().video, context, "first_video_button")
                   }
@@ -856,11 +843,9 @@ internal fun VideoListContent(
   val configuration = androidx.compose.ui.platform.LocalConfiguration.current
   val density = LocalDensity.current
   val navigationBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
-  val miniPlayerClearance = app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance
   val bottomPadding =
     maxOf(
       navigationBarHeight,
-      miniPlayerClearance,
       if (showFloatingBottomBar) app.gyrolet.mpvrx.ui.browser.NavigationBarState.selectionBarClearance else 0.dp,
     )
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
@@ -871,6 +856,7 @@ internal fun VideoListContent(
   val showResolutionChip by browserPreferences.showResolutionChip.collectAsState()
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by browserPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
   val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
@@ -898,6 +884,7 @@ internal fun VideoListContent(
       showFramerateInResolution,
       showCodecSupportIndicator,
       showProgressBar,
+      grayscaleWatchedThumbnails,
       showDateChip,
       showUnplayedOldVideoLabel,
       unplayedOldVideoDays,
@@ -917,6 +904,7 @@ internal fun VideoListContent(
         showFramerateInResolution = showFramerateInResolution,
         showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
+        grayscaleWatchedThumbnails = grayscaleWatchedThumbnails,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
         unplayedOldVideoDays = unplayedOldVideoDays,
@@ -1056,7 +1044,7 @@ internal fun VideoListContent(
         ) {
           val generationId = "$folderId:${mediaLayoutMode.name}"
           try {
-            if (showVideoThumbnails && !archiveFolder && latestVideosWithInfo.isNotEmpty()) {
+            if (showVideoThumbnails && latestVideosWithInfo.isNotEmpty()) {
               snapshotFlow {
                 if (mediaLayoutMode == MediaLayoutMode.LIST) listState.isScrollInProgress
                 else gridState.isScrollInProgress
@@ -1168,8 +1156,6 @@ internal fun VideoListContent(
                       thumbnailWidthPx = thumbWidthPx,
                       thumbnailHeightPx = thumbHeightPx,
                       showSubtitleIndicator = showSubtitleIndicator,
-                      allowThumbnailGeneration = !archiveFolder,
-                      allowThumbnailLoading = !archiveFolder,
                       uiConfig = videoCardUiConfig,
                   )
                 }
@@ -1238,8 +1224,6 @@ internal fun VideoListContent(
                       isGridMode = false,
                       onSwipeAction = swipeActions.video.takeUnless { archiveFolder || selectionManager.isInSelectionMode },
                       showSubtitleIndicator = showSubtitleIndicator,
-                      allowThumbnailGeneration = !archiveFolder,
-                      allowThumbnailLoading = !archiveFolder,
                       uiConfig = videoCardUiConfig,
                       thumbnailWidthPx = if (isAudio || videoWithInfo.video.isAudio) with(density) { musicCoverArtSize.dp.roundToPx() } else null,
                       thumbnailHeightPx = if (isAudio || videoWithInfo.video.isAudio) with(density) { musicCoverArtSize.dp.roundToPx() } else null,

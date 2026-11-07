@@ -9,6 +9,9 @@
 
 package app.gyrolet.mpvrx.ui.browser
 
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +21,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import com.kyant.backdrop.Backdrop
 
 /**
  * Centralized state holder for browser navigation visibility.
@@ -47,6 +52,11 @@ object NavigationBarState {
   // browser layout can adapt when the mini player is on screen).
   var isMiniPlayerVisible: Boolean by mutableStateOf(false)
 
+  internal var miniPlayerConnectionEnabled: Boolean by mutableStateOf(false)
+  internal var isMiniPlayerDocked: Boolean by mutableStateOf(false)
+  internal var dockProgress: Float by mutableFloatStateOf(0f)
+  internal var dockBackdrop: Backdrop? by mutableStateOf(null)
+
   // Includes both navigation styles, but not bars belonging to a covered screen.
   var isNavBarVisible: Boolean by mutableStateOf(false)
 
@@ -61,6 +71,8 @@ object NavigationBarState {
   var navbarWidth: Dp by mutableStateOf(320.dp)
 
   val floatingBarSpacing: Dp = 12.dp
+  internal val connectedDockSpacing: Dp = 2.dp
+  internal val connectedDockCorner: Dp = 4.dp
   internal val navigationPillMaxWidth: Dp = 400.dp
   internal val navigationPillMaxMargin: Dp = 58.dp
   internal val miniPlayerMinWidth: Dp = 320.dp
@@ -94,6 +106,7 @@ object NavigationBarState {
   val miniPlayerBottomSpacing: Dp
     get() = when {
       isInSelectionMode -> selectionBarClearance
+      isMiniPlayerDocked -> navigationPillHeight + navigationBarBottomSpacing + connectedDockSpacing
       isNavBarVisible && !isMiniPlayerBesideNavigation && !isDualPaneLayout -> navigationBarClearance
       else -> floatingBarSpacing
     }
@@ -183,4 +196,11 @@ object NavigationBarState {
   }
 
   private const val SCROLL_THRESHOLD_PX = 60f
+}
+
+@Composable
+internal fun rememberMiniPlayerShape(): RoundedCornerShape {
+  val joiningCorner = 20.dp * (1f - NavigationBarState.dockProgress) +
+    NavigationBarState.connectedDockCorner * NavigationBarState.dockProgress
+  return AppShapeScale.largeIncreased.copy(bottomStart = CornerSize(joiningCorner), bottomEnd = CornerSize(joiningCorner))
 }

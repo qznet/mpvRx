@@ -55,10 +55,8 @@
   <string name="pref_appearance_ui_scale_restart_now">अभी रीस्टार्ट करें</string>
   <string name="pref_appearance_unlimited_name_lines_title">पूरे नाम दिखाएं</string>
   <string name="pref_appearance_unlimited_name_lines_summary">फोल्डर और वीडियो के पूरे नाम बिना काटे दिखाएं</string>
-  <string name="pref_appearance_hide_player_buttons_background_title">प्लेयर बटन का बैकग्राउंड छुपाएं</string>
   <string name="pref_appearance_force_dark_player_buttons_background_title">प्लेयर बटन की पृष्ठभूमि हमेशा गहरी रखें</string>
   <string name="pref_appearance_force_dark_player_buttons_background_summary">हल्की, गहरी और स्वचालित थीम में प्लेयर नियंत्रण बटन की पृष्ठभूमि गहरी रखें</string>
-  <string name="pref_appearance_hide_player_buttons_background_summary">सभी प्लेयर कंट्रोल बटनों का बैकग्राउंड छुपाएं</string>
   <string name="pref_appearance_category_file_browser">फाइल ब्राउज़र</string>
   <string name="pref_appearance_category_thumbnails">थंबनेल्स</string>
   <string name="pref_appearance_category_navigation">नेविगेशन</string>
@@ -157,7 +155,7 @@
   <string name="pref_player_show_buffered_range_summary">सीक बार पर प्लेहेड से आगे का ऑनलाइन बफर दिखाएं।</string>
   <string name="pref_player_show_chapter_indicators_title">सीक बार पर चैप्टर इंडिकेटर दिखाएं</string>
   <string name="pref_player_show_chapter_indicators_summary">सीक बार पर चैप्टरों को अलग-अलग रंगों में दिखाएं।</string>
-  <string name="pref_double_tap_seek_area_width_title">डबल टैप सीक एरिया की चौड़ाई</string>
+  <string name="pref_double_tap_seek_area_width_title">टैप जेस्चर क्षेत्र की चौड़ाई</string>
   <string name="pref_export_settings_title">सेटिंग्स एक्सपोर्ट करें</string>
   <string name="pref_export_settings_summary">सेटिंग्स को XML फाइल में एक्सपोर्ट करें</string>
   <string name="pref_import_settings_title">सेटिंग्स इम्पोर्ट करें</string>
@@ -190,7 +188,7 @@
   <string name="pref_player_orientation_reverse_landscape">रिवर्स लैंडस्केप</string>
   <string name="pref_player_orientation_sensor_landscape">सेंसर लैंडस्केप</string>
   <string name="pref_player_save_position_on_quit">बंद करते समय पोजीशन सेव करें</string>
-  <string name="pref_player_double_tap_seek_duration">डबल टैप सीक ड्यूरेशन</string>
+  <string name="pref_player_double_tap_seek_duration">टैप सीक अवधि</string>
   <string name="pref_player_custom_skip_duration_title">कस्टम स्किप ड्यूरेशन</string>
   <string name="pref_player_custom_skip_duration_summary">कस्टम स्किप बटन पर आगे स्किप करने की अवधि</string>
   <string name="pref_player_seeking_title">सीकिंग</string>
@@ -200,8 +198,6 @@
   <string name="pref_player_gestures_volume">वॉल्यूम जेस्चर</string>
   <string name="pref_player_gestures_pinch_to_zoom">पिंच टू ज़ूम</string>
   <string name="pref_player_gestures_pinch_to_zoom_subtitles">सबटाइटल पिंच टू ज़ूम</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe">स्पीड के लिए दो उंगलियों से स्वाइप</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe_summary">प्लेबैक स्पीड 0.25x बदलने के लिए दो उंगलियों से ऊपर या नीचे स्वाइप करें, 0.5x से 4x तक</string>
   <string name="pref_subtitles_secondary_pinch_zoom">पिंच से द्वितीयक सबटाइटल ज़ूम करें</string>
   <string name="pref_subtitles_secondary_pinch_zoom_summary">प्राथमिक सबटाइटल को पिंच करने पर द्वितीयक सबटाइटल का आकार भी बदलेगा</string>
   <string name="pref_player_gestures_swipe_subtitles_to_seek_dialog">सबटाइटल स्वाइप से सीक डायलॉग</string>
@@ -216,18 +212,24 @@
   <string name="pref_player_controls_show_loading_circle">लोडिंग सर्कल दिखाएं</string>
   <string name="pref_player_display_show_status_bar">कंट्रोल्स के साथ सिस्टम स्टेटस बार दिखाएं</string>
   <string name="pref_gesture">जेस्चर</string>
-  <string name="pref_gesture_summary">डबल टैप, मीडिया कंट्रोल्स</string>
-  <string name="pref_gesture_double_tap_title">डबल टैप</string>
+  <string name="pref_gesture_summary">सिंगल/डबल टैप, मीडिया कंट्रोल्स</string>
+  <string name="pref_gesture_double_tap_title">टैप जेस्चर</string>
   <string name="pref_gesture_double_tap_none">कोई नहीं</string>
   <string name="pref_gesture_double_tap_seek">सीक</string>
   <string name="pref_gesture_double_tap_play">प्ले/पॉज</string>
   <string name="pref_gesture_double_tap_custom">कस्टम</string>
   <string name="pref_gesture_double_tap_left_title">डबल टैप (बाएं)</string>
+  <string name="pref_gesture_single_tap_left_title">सिंगल टैप (बाएं)</string>
   <string name="pref_gesture_double_tap_center_title">डबल टैप (बीच में)</string>
   <string name="pref_gesture_single_tap_center_title">सिंगल टैप (बीच में)</string>
   <string name="pref_gesture_double_tap_right_title">डबल टैप (दाएं)</string>
-  <string name="pref_gesture_use_single_tap_for_center_title">बीच के जेस्चर के लिए सिंगल टैप इस्तेमाल करें</string>
-  <string name="pref_gesture_use_single_tap_for_center_summary">बीच में जेस्चर (जैसे प्ले/पॉज) के लिए डबल टैप की बजाय सिंगल टैप इस्तेमाल करें।</string>
+  <string name="pref_gesture_single_tap_right_title">सिंगल टैप (दाएं)</string>
+  <string name="pref_gesture_use_single_tap_for_left_title">बाईं ओर सिंगल टैप</string>
+  <string name="pref_gesture_use_single_tap_for_center_title">बीच में सिंगल टैप</string>
+  <string name="pref_gesture_use_single_tap_for_right_title">दाईं ओर सिंगल टैप</string>
+  <string name="pref_gesture_use_single_tap_for_left_summary">बाईं ओर की कार्रवाई के लिए दो बार की जगह एक बार टैप करें।</string>
+  <string name="pref_gesture_use_single_tap_for_center_summary" formatted="false">बीच के क्षेत्र में एक बार टैप करें (डिफ़ॉल्ट चौड़ाई 30% और ऊँचाई 30%)। बीच के बाकी टैप कंट्रोल दिखाते या छिपाते हैं।</string>
+  <string name="pref_gesture_use_single_tap_for_right_summary">दाईं ओर की कार्रवाई के लिए दो बार की जगह एक बार टैप करें।</string>
   <string name="pref_gesture_center_vertical_subtitle_position_title">खींचकर उपशीर्षक खिसकाएँ</string>
   <string name="pref_gesture_center_vertical_subtitle_position_summary">मुख्य उपशीर्षक को खिसकाने के लिए बीच में दबाकर रखें, फिर ऊपर या नीचे खींचें। किसी भी उपशीर्षक को सीधे दबाकर रखने पर उसका ट्रैक अलग से खिसकाया जा सकता है। सामान्य स्वाइप से प्लेलिस्ट पहले की तरह खुलती है।</string>
   <string name="pref_gesture_double_tap_custom_info">आप input.conf में इन की-कोड्स का इस्तेमाल करके इन जेस्चरों पर कस्टम एक्शन बांध सकते हैं:\n\nबाएं: MBTN_LEFT_DBL\nबीच: MBTN_MID_DBL\nदाएं: MBTN_RIGHT_DBL</string>
@@ -414,9 +416,6 @@
   <string name="player_sheets_sub_misc_card_title">विविध</string>
   <string name="player_sheets_sub_delay_card_title">सबटाइटल डिले</string>
   <string name="player_sheets_sub_delay_card_delay">डिले</string>
-  <string name="player_sheets_delay_quick_sync_summary">क्विक सिंक एक निरपक्ष मान लागू करता है, इसलिए एक ही चिप को दो बार दबाने पर वही मान रहता है।</string>
-  <string name="player_sheets_delay_offset_seconds">%1$+d से</string>
-  <string name="player_sheets_delay_offset_zero_seconds">0 से</string>
   <string name="player_sheets_sub_delay_card_speed">स्पीड</string>
   <string name="player_sheets_sub_delay_subtitle_voice_heard">आवाज़ सुनी</string>
   <string name="player_sheets_sub_delay_subtitle_text_seen">टेक्स्ट दिखा</string>
@@ -474,7 +473,7 @@
   <string name="swap_the_volume_and_brightness_slider">वॉल्यूम और ब्राइटनेस स्लाइडर बदलें</string>
   <string name="pref_player_display_reduce_player_animation">प्लेयर एनिमेशन कम करें</string>
   <string name="pref_player_display_hide_player_control_time">प्लेयर कंट्रोल टाइम छुपाएं</string>
-  <string name="show_splash_ovals_on_double_tap_to_seek">डबल टैप सीक पर रिपल दिखाएं</string>
+  <string name="show_splash_ovals_on_double_tap_to_seek">टैप सीक पर रिपल दिखाएं</string>
   <string name="show_time_on_double_tap_to_seek">सीक टाइम दिखाएं</string>
   <string name="player_sheets_frame_navigation_title">फ्रेम नेविगेशन</string>
   <string name="player_sheets_frame_navigation_include_subtitles">स्नैपशॉट में सबटाइटल शामिल करें</string>
@@ -696,7 +695,7 @@
   <string name="pref_config_cache_cleared_toast">कॉन्फिग कैश साफ हो गया</string>
   <string name="pref_thumbnail_cache_confirm_title">थंबनेल कैश साफ करें?</string>
   <string name="pref_thumbnail_cache_confirm_subtitle">इससे स्टोरेज और मेमोरी से कैश किए गए थंबनेल डिलीट हो जाएंगे।</string>
-  <string name="pref_section_logging">लॉगिंग</string>
+  <string name="pref_section_logging">लॉगिंग, निदान और गोपनीयता</string>
   <string name="pref_export_failed_toast">एक्सपोर्ट नाकाम: %1$s</string>
   <string name="pref_ai_features_section">AI फीचर</string>
   <string name="pref_ai_enabled_title">AI फीचर सक्षम करें</string>
@@ -747,7 +746,6 @@
   <string name="pref_custom_format_prompt_label">कस्टम सबटाइटल फॉर्मेटिंग प्रॉम्प्ट</string>
   <string name="pref_legacy_prompt_info">लीगेसी ग्लोबल प्रॉम्प्ट सेव है। जब भी कोई टास्क-विशिष्ट प्रॉम्प्ट खाली होगा, यह इस्तेमाल होगा।</string>
   <string name="pref_media_library_section">मीडिया लाइब्रेरी</string>
-  <string name="pref_hidden_folders_section">छुपे फोल्डर</string>
   <string name="pref_clear_content_desc">साफ करें</string>
   <string name="search_api_key_config_title">API की कॉन्फ़िगरेशन</string>
   <string name="search_ai_model_selection_title">AI मॉडल चयन</string>
@@ -762,10 +760,6 @@
   <string name="pref_config_cache_size">साइज़: %1$s</string>
   <string name="pref_thumbnail_cache_summary">सभी कैश किए गए वीडियो थंबनेल डिलीट करें (फोल्डर ब्राउज़ करते ही फिर से बन जाएंगे)</string>
   <string name="pref_thumbnail_cache_size">साइज़: %1$s</string>
-  <string name="pref_clear_animated_artwork_cache_title">एनिमेटेड एल्बम आर्टवर्क कैश साफ़ करें</string>
-  <string name="pref_clear_animated_artwork_cache_summary">डाउनलोड किए गए एनिमेटेड एल्बम कवर हटाएँ (दिखाने पर फिर से डाउनलोड होंगे)</string>
-  <string name="pref_animated_artwork_cache_size">साइज़: %1$s</string>
-  <string name="pref_animated_artwork_cache_cleared">एनिमेटेड आर्टवर्क कैश साफ़ किया गया</string>
   <string name="pref_fonts_cache_size">साइज़: %1$s · %2$d फॉन्ट</string>
   <string name="pref_failed_to_clear">साफ करना नाकाम: %1$s</string>
   <string name="pref_export_failed">एक्सपोर्ट नाकाम: %1$s</string>
@@ -963,6 +957,9 @@
   <string name="player_horizontal_flip_off">हॉरिजॉन्टल फ्लिप ऑफ</string>
   <string name="player_vertical_flip_on">वर्टिकल फ्लिप ऑन</string>
   <string name="player_vertical_flip_off">वर्टिकल फ्लिप ऑफ</string>
+  <string name="player_hwplus_unsupported">%1$s HW+ मोड में सपोर्टेड नहीं है। इसे इस्तेमाल करने के लिए HW या SW डिकोडिंग पर स्विच करें।</string>
+  <string name="player_hwplus_use_hw">HW इस्तेमाल करें</string>
+  <string name="player_hwplus_cpu_deband">CPU डीबैंडिंग</string>
   <string name="btn_label_back">बैक एरो</string>
   <string name="btn_label_title">वीडियो टाइटल</string>
   <string name="btn_label_bookmarks">चैप्टर / बुकमार्क</string>
@@ -1356,8 +1353,6 @@
   <string name="ui_no_storage_location_configured">कोई स्टोरेज लोकेशन कॉन्फ़िगर नहीं है</string>
   <string name="ui_script_file_not_found">स्क्रिप्ट फाइल नहीं मिली</string>
   <string name="ui_search_models">मॉडल खोजें...</string>
-  <string name="ui_portrait_playback_buttons">पोर्ट्रेट प्लेबैक बटन</string>
-  <string name="ui_landscape_playback_buttons">लैंडस्केप प्लेबैक बटन</string>
   <string name="ui_portrait_seekbar_position">पोर्ट्रेट सीकबार की स्थिति</string>
   <string name="ui_landscape_seekbar_position">लैंडस्केप सीकबार की स्थिति</string>
   <string name="pref_player_buttons_opacity">प्लेयर बटन पृष्ठभूमि की अपारदर्शिता</string>
@@ -1418,7 +1413,6 @@
   <string name="oss_androidx_documentfile_description">डॉक्यूमेंट स्टोरेज एक्सेस के लिए एब्स्ट्रैक्शन लेयर।</string>
   <string name="oss_androidx_media_description">Android मीडिया सेशन और प्लेबैक API।</string>
   <string name="oss_androidx_palette_description">तस्वीरों से प्रमुख और जीवंत रंग पैलेट निकालता है।</string>
-  <string name="oss_androidx_profile_installer_description">तेज़ ऐप स्टार्टअप के लिए क्लास और मेथड पहले से लोड करता है।</string>
   <string name="oss_google_material_description">Material Design कंपोनेंट और थीमिंग लाइब्रेरी।</string>
   <string name="oss_google_cast_description">मीडिया कास्टिंग के लिए Chromecast फ्रेमवर्क।</string>
   <string name="oss_material_symbols_description">Compose के लिए Material Symbols आइकन सेट।</string>
@@ -1573,7 +1567,6 @@
   <string name="secure_folder_move_items_subtitle">वे इस लिस्ट और ऐप में हर जगह से गायब हो जाएंगी जब तक कि रीस्टोर न किया जाए।</string>
   <string name="secure_folder_moved_success">%1$d फाइलें सिक्योर फोल्डर में ले जाई गईं</string>
   <string name="secure_folder_moved_partial">%1$d ले जाई गईं, %2$d नाकाम</string>
-  <string name="secure_folder_move_failed">फाइलों को सिक्योर फोल्डर में ले जाना नाकाम</string>
   <string name="secure_folder_error_incorrect_pin">गलत PIN</string>
   <string name="secure_folder_error_pins_dont_match">PIN मेल नहीं खाते</string>
   <string name="secure_folder_error_answer_question">कृपया सुरक्षा सवाल का जवाब दें</string>
@@ -1781,9 +1774,6 @@
   <string name="ui_yt_dlp_commit">कमिट %1$s</string>
   <string name="ui_version_unavailable">संस्करण उपलब्ध नहीं है</string>
   <string name="ui_update_channel">अपडेट चैनल</string>
-  <string name="ui_stable_releases">स्थिर</string>
-  <string name="ui_preview_builds">पूर्वावलोकन (Nightly)</string>
-  <string name="ui_preview_builds_summary">पूर्वावलोकन बिल्ड नवीनतम mpvRx बदलावों से प्रकाशित हस्ताक्षरित परीक्षण संस्करण हैं और अस्थिर हो सकते हैं।</string>
   <string name="update_whats_new">नया क्या है</string>
   <string name="update_no_release_notes">कोई रिलीज़ नोट उपलब्ध नहीं है।</string>
   <string name="update_ready_to_install">इंस्टॉल करने के लिए तैयार</string>
@@ -1974,8 +1964,6 @@
   <string name="pref_appearance_custom_wallpaper_transparency">पारदर्शिता</string>
   <string name="pref_folders_add_marker">मार्कर फ़ाइल जोड़ें</string>
   <string name="pref_folders_add_marker_title">छिपे फ़ोल्डर का मार्कर जोड़ें</string>
-  <string name="pref_folders_hidden_markers_empty">कोई मार्कर फ़ाइल कॉन्फ़िगर नहीं है। बिंदु से शुरू होने वाले नामों के फ़ोल्डर फिर भी शामिल हैं।</string>
-  <string name="pref_folders_hidden_markers_summary">इन फ़ाइलों वाले फ़ोल्डर और उनके सबफ़ोल्डर शामिल हैं। बिंदु से शुरू होने वाले नामों के फ़ोल्डर हमेशा शामिल होते हैं।</string>
   <string name="pref_folders_hidden_markers_title">मार्कर फ़ाइलें</string>
   <string name="pref_folders_include_hidden_summary">बिंदु से शुरू होने वाले नामों के फ़ोल्डर और चुनी गई मार्कर फ़ाइलों वाले फ़ोल्डर में वीडियो खोजें।</string>
   <string name="pref_folders_include_hidden_title">छिपे मीडिया फ़ोल्डर शामिल करें</string>
@@ -2182,7 +2170,6 @@
   <string name="snapshot_delete_title">स्नैपशॉट हटाएं?</string>
   <string name="snapshot_delete_selected_title">%1$d स्नैपशॉट हटाएं?</string>
   <string name="snapshot_delete_message">यह ऐप से रिकॉर्ड हटा देता है। छवि आपकी गैलरी में रहती है।</string>
-  <string name="snapshot_delete">हटाएं</string>
   <string name="snapshot_remove">निकालें</string>
 
   <string name="snapshot_root">रूट</string>
@@ -2253,7 +2240,10 @@
     <item quantity="one">%1$s से सेटिंग्स बहाल हुईं। %2$d खराब प्रविष्टि छोड़ दी गई। डाउनलोड Configuration/Downloads का उपयोग करेंगे।</item>
     <item quantity="other">%1$s से सेटिंग्स बहाल हुईं। %2$d खराब प्रविष्टियाँ छोड़ दी गईं। डाउनलोड Configuration/Downloads का उपयोग करेंगे।</item>
   </plurals>
-  <string name="settings_restore_reverted">%1$s से बहाल की गई सेटिंग्स के कारण ऐप क्रैश हुआ, इसलिए उन्हें वापस ले लिया गया।</string>
+  <plurals name="pref_import_skipped_invalid">
+    <item quantity="one">%1$d अमान्य सेटिंग छोड़ी गई</item>
+    <item quantity="other">%1$d अमान्य सेटिंग्स छोड़ी गईं</item>
+  </plurals>
   <string name="onboarding_configuration_restore_failed">फ़ोल्डर सेटअप पूरा नहीं हुआ: %1$s</string>
   <string name="navbar_glow_title">ग्लास की चमक</string>
   <string name="navbar_glow_summary">नेविगेशन बार की किनारे की रोशनी और स्पर्श चमक दिखाएं</string>
@@ -2483,20 +2473,13 @@
   <string name="app_icon_create_custom_shortcut">होम स्क्रीन पर सटीक कस्टम आइकन जोड़ें</string>
   <string name="pref_experimental_badge">प्रयोगात्मक</string>
   <string name="pref_liquid_glass_experimental_note">लिक्विड ग्लास प्रभाव प्रयोगात्मक हैं और डिवाइस के अनुसार अलग दिख सकते हैं।</string>
-  <string name="pref_hidden_scan_per_mode_summary">चुनें कि प्रत्येक होम मोड मार्कर से छिपे या डॉट से शुरू होने वाले फ़ोल्डर स्कैन करे या नहीं। बंद करने पर ब्राउज़ करते समय भी वे छोड़ दिए जाएंगे। ऊपर का स्विच छिपे मीडिया को पूरे ऐप में सक्षम करता है।</string>
-  <string name="pref_hidden_scan_scoped_summary">हर दृश्य आपके द्वारा Android में अनुमति दिए गए फ़ोल्डरों के भीतर ही डॉट से शुरू या मार्कर से छिपे फ़ोल्डरों को शामिल या छोड़ सकता है। बिना चुने फ़ोल्डरों तक पहुंच नहीं मिलेगी।</string>
   <string name="pref_hidden_scan_library">लाइब्रेरी</string>
   <string name="pref_hidden_scan_tree">ट्री</string>
   <string name="pref_hidden_scan_folders">फ़ोल्डर</string>
-  <string name="pref_hidden_scan_marked">मार्कर से छिपे फ़ोल्डर स्कैन करें</string>
-  <string name="pref_hidden_scan_marked_summary">वे फ़ोल्डर जिनमें .nomedia या आपकी सूची का दूसरा मार्कर हो</string>
-  <string name="pref_hidden_scan_single_marker_summary">इस दृश्य में इस मार्कर वाले फ़ोल्डर शामिल करें</string>
-  <string name="pref_hidden_scan_dot_summary">वे फ़ोल्डर जिनके नाम डॉट से शुरू होते हैं, जैसे .Videos</string>
   <string name="ambient_cinema">सिनेमा</string>
   <string name="ambient_echo">इको</string>
   <string name="ambient_mirror">मिरर</string>
   <string name="ambient_ambilight">एम्बीलाइट</string>
-  <string name="ambient_fx_auto_hint">यह मोड पूरी तरह अपने आप काम करता है। बेहतर दृश्य परिणाम के लिए सेटिंग तय हैं और बदली नहीं जा सकतीं।</string>
   <string name="app_icon_bg_crimson">गहरा लाल</string>
   <string name="app_icon_bg_rose">गुलाबी</string>
   <string name="app_icon_bg_peach">आड़ू</string>
@@ -2522,7 +2505,6 @@
   <string name="pref_nav_home_title">होम / फ़ाइलें</string>
   <string name="pref_nav_home_summary">स्थानीय फ़ोल्डर और फ़ाइलें ब्राउज़ करें (हमेशा उपलब्ध)</string>
   <string name="pref_nav_actions_section">नेविगेशन क्रियाएं</string>
-  <string name="pref_about_playback_libraries">प्लेबैक लाइब्रेरी</string>
   <string name="color_picker_field">रंग चुनें</string>
   <string name="color_picker_sliders">स्लाइडर</string>
   <string name="color_picker_field_description">संतृप्ति और चमक। सटीक बदलाव के लिए स्लाइडर का उपयोग करें।</string>
@@ -2532,15 +2514,12 @@
   <string name="app_icon_custom_background">कस्टम बैकग्राउंड</string>
   <string name="app_icon_custom_background_hint">एक रंग चुनें। Android ऐप ड्रॉअर में सबसे मिलते-जुलते पहले से मौजूद आइकन का उपयोग करेगा। आपका सटीक रंग होम स्क्रीन आइकन के रूप में सहेजा और हाल के ऐप्स में इस्तेमाल किया जा सकता है।</string>
   <string name="app_icon_custom_logo_hint">कस्टम बैकग्राउंड पर लगाने के लिए कोई भी लोगो चुनें।</string>
-  <string name="app_icon_shortcut_preview">होम स्क्रीन शॉर्टकट का पूर्वावलोकन</string>
   <string name="app_icon_custom_requested">आपका डिज़ाइन</string>
   <string name="app_icon_custom_native_match">लॉन्चर का वास्तविक आइकन</string>
   <string name="app_icon_use_wallpaper_colors">इसके बजाय वॉलपेपर के रंग इस्तेमाल करें</string>
-  <string name="app_icon_shortcut_apply">शॉर्टकट जोड़ें या अपडेट करें</string>
   <string name="app_icon_shortcut_requested">अनुरोध भेज दिया गया। शॉर्टकट जोड़ने के लिए लॉन्चर में पुष्टि करें।</string>
   <string name="app_icon_shortcut_updated">होम स्क्रीन शॉर्टकट अपडेट हो गया</string>
   <string name="app_icon_shortcut_unsupported">यह लॉन्चर होम स्क्रीन शॉर्टकट जोड़ने का समर्थन नहीं करता।</string>
-  <string name="app_icon_shortcut_failed">शॉर्टकट सहेजा नहीं जा सका। फिर कोशिश करें।</string>
   <string name="color_picker_wheel">रंग चक्र</string>
   <string name="color_picker_brightness">चमक</string>
     <string name="only_for_video_list">केवल वीडियो सूची के लिए</string>
@@ -2683,6 +2662,9 @@
   <string name="jellyfin_details">जानकारी</string>
   <string name="jellyfin_trailer">ट्रेलर</string>
   <string name="jellyfin_open_trailer_error">ट्रेलर खोलने के लिए कोई ऐप उपलब्ध नहीं है।</string>
+  <string name="no_app_for_action">इस डिवाइस पर कोई ऐप इसे नहीं खोल सकता।</string>
+  <string name="tv_picker_file_exists">इस नाम की फ़ाइल पहले से मौजूद है।</string>
+  <string name="tv_picker_no_access">mpvRx इस स्थान तक नहीं पहुँच सकता।</string>
   <string name="jellyfin_libraries">लाइब्रेरी</string>
   <string name="jellyfin_continue_watching">देखना जारी रखें</string>
   <string name="jellyfin_latest_movies">नई फ़िल्में</string>
@@ -2703,7 +2685,6 @@
   <string name="jellyfin_more_like_this">ऐसे और भी</string>
   <string name="jellyfin_watched">देखा गया</string>
   <string name="jellyfin_search_hint">फ़िल्में, सीरीज़ और एपिसोड खोजें…</string>
-  <string name="pref_scan_filters">स्कैन फ़िल्टर</string>
   <string name="pref_filter_short_videos">छोटे वीडियो फ़िल्टर करें</string>
   <string name="pref_filter_short_videos_summary">स्कैन करते समय चुनी गई अवधि से छोटे वीडियो छोड़ें</string>
   <string name="pref_filter_small_files">छोटी फ़ाइलें फ़िल्टर करें</string>
@@ -2754,7 +2735,10 @@
   <!-- Folder filters and clip export tracks -->
   <string name="clip_audio_track">ऑडियो ट्रैक</string>
   <string name="clip_subtitle_track">उपशीर्षक ट्रैक</string>
-  <string name="clip_burn_subtitles">वीडियो में उपशीर्षक स्थायी रूप से जोड़ें</string>
+  <string name="clip_include_subtitles">वीडियो में उपशीर्षक शामिल करें</string>
+  <string name="clip_subtitle_read_failed">चुने गए उपशीर्षक पढ़े नहीं जा सके।</string>
+  <string name="clip_subtitle_unsupported">इस उपशीर्षक प्रारूप को वीडियो में शामिल नहीं किया जा सकता।</string>
+  <string name="clip_subtitle_too_large">उपशीर्षक फ़ाइल क्लिप में शामिल करने के लिए बहुत बड़ी है।</string>
   <string name="clip_track_auto_off">स्वचालित / बंद</string>
   <string name="pref_blacklist_count">%1$d ब्लैकलिस्ट फ़ोल्डर</string>
   <string name="pref_whitelist_disabled">व्हाइटलिस्ट बंद है</string>
@@ -2772,4 +2756,21 @@
   <string name="clip_quick_length">झटपट लंबाई</string>
   <string name="clip_length_seconds">%1$d से॰</string>
   <string name="clip_crop_reset">पूरा फ़्रेम इस्तेमाल करें</string>
+  <string name="pref_layout_seekbar_above">सीकबार ऊपर</string>
+  <string name="pref_layout_seekbar_below">सीकबार नीचे</string>
+  <string name="player_layout_preset_title">प्लेबैक लेआउट</string>
+  <string name="player_layout_preview_hint">सिर्फ़ नमूना। बदलाव तुरंत सहेजे जाते हैं।</string>
+  <string name="player_layout_shared_landscape_hint">लैंडस्केप की सभी जगहों पर लागू होता है।</string>
+  <string name="pref_ignore_audio_focus_title">ऑडियो फ़ोकस को अनदेखा करें</string>
+  <string name="pref_ignore_audio_focus_summary">दूसरे ऐप्लिकेशन के साथ ऑडियो और वीडियो चलाते रहें, बिना रुके या आवाज़ कम किए</string>
+  <string name="pref_audio_spatial_title">स्थानिक ऑडियो</string>
+  <string name="pref_audio_spatial_summary">ज़्यादा इमर्सिव अनुभव के लिए स्टीरियो ट्रैक का ध्वनि विस्तार बढ़ाता है</string>
+  <string name="pref_measure_enabled_title">Measure के साथ निदान साझा करें</string>
+  <string name="pref_measure_enabled_summary">क्रैश, ANR, प्रदर्शन आँकड़े और सत्र गतिविधि Measure को भेजने के लिए सहमति दें। डिफ़ॉल्ट रूप से बंद।</string>
+  <string name="pref_measure_not_configured">निदान उपलब्ध नहीं: इस बिल्ड में Measure API कुंजी नहीं है।</string>
+  <string name="pref_layout_portrait_playback_position">पोर्ट्रेट प्लेबैक नियंत्रण</string>
+  <string name="pref_layout_landscape_playback_position">लैंडस्केप प्लेबैक नियंत्रण</string>
+  <string name="pref_layout_playback_center">स्क्रीन के बीच में</string>
+  <string name="pref_layout_playback_above_seekbar">सीकबार के ऊपर</string>
+  <string name="pref_layout_playback_below_seekbar">सीकबार के नीचे</string>
 </resources>

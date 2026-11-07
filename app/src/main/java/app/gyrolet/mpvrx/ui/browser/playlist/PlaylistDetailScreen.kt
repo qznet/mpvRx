@@ -11,20 +11,20 @@ package app.gyrolet.mpvrx.ui.browser.playlist
 
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import app.gyrolet.mpvrx.ui.theme.AppMotion
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -112,7 +112,6 @@ import app.gyrolet.mpvrx.ui.components.InlineSearchBar
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.player.ContainerGeometryProbe
-import app.gyrolet.mpvrx.ui.player.PlaybackIdentity
 import app.gyrolet.mpvrx.ui.player.PlaybackItem
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
@@ -338,9 +337,7 @@ data class PlaylistDetailScreen(
             val headersMap = headerExtra?.let { mapOf(it[0] to it[1]) }.orEmpty()
             PlaybackItem.fromUri(
               uri = uri.toString(),
-              stableId = if (app.gyrolet.mpvrx.BuildConfig.SCOPED_STORAGE_ONLY && playlistEntry.video.uri.scheme == "content") {
-                app.gyrolet.mpvrx.ui.browser.videolist.videoPlaybackIdentifiers(playlistEntry.video).first()
-              } else playlistEntry.video.path.takeIf(String::isNotBlank)?.let(PlaybackIdentity::forLocalPath),
+              stableId = MediaUtils.playbackIdentity(playlistEntry.video),
               title = playlistEntry.playlistItem.fileName,
               mimeType = if (isAudio) "audio/*" else playlistEntry.video.mimeType,
               headers = headersMap,
@@ -364,7 +361,8 @@ data class PlaylistDetailScreen(
           action = Intent.ACTION_VIEW
           data = playUri
           putExtra("internal_launch", true)
-          putExtra("local_media_path", item.video.path)
+          // ZIP/stream entries must keep the URI identity the playlist queue uses, or progress is never saved.
+          item.video.path.takeIf { it.startsWith('/') }?.let { putExtra("local_media_path", it) }
           putExtra("playlist_index", startIndex)
           putExtra("playlist_id", playlistId)
           putExtra("launch_source", if (playlist?.isM3uPlaylist == true) "m3u_playlist" else "playlist")
@@ -903,10 +901,7 @@ private fun PlaylistVideoListContent(
   val showLocation by viewPreferences.showLocation.collectAsState()
   val showCategory by viewPreferences.showCategory.collectAsState()
   val showStreamDetails by viewPreferences.showStreamDetails.collectAsState()
-  val bottomClearance = maxOf(
-    app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current,
-    app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance,
-  ) + 80.dp
+  val bottomClearance = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current + 80.dp
   val tapThumbnailToSelect by gesturePreferences.tapThumbnailToSelect.collectAsState()
   val showSubtitleIndicator by viewPreferences.showSubtitleIndicator.collectAsState()
   val unlimitedNameLines by viewPreferences.unlimitedNameLines.collectAsState()
@@ -915,6 +910,7 @@ private fun PlaylistVideoListContent(
   val showResolutionChip by viewPreferences.showResolutionChip.collectAsState()
   val showFramerateInResolution by viewPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by viewPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by viewPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by viewPreferences.showDateChip.collectAsState()
   val showCodecSupportIndicator by viewPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
@@ -938,6 +934,7 @@ private fun PlaylistVideoListContent(
       showFramerateInResolution,
       showCodecSupportIndicator,
       showProgressBar,
+      grayscaleWatchedThumbnails,
       showDateChip,
       showUnplayedOldVideoLabel,
       unplayedOldVideoDays,
@@ -957,6 +954,7 @@ private fun PlaylistVideoListContent(
         showFramerateInResolution = showFramerateInResolution,
         showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
+        grayscaleWatchedThumbnails = grayscaleWatchedThumbnails,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
         unplayedOldVideoDays = unplayedOldVideoDays,
@@ -979,6 +977,8 @@ private fun PlaylistVideoListContent(
     }
 
   val itemContent: @Composable (PlaylistVideoItem, Boolean, Int, MediaSelectionNeighbors, Modifier) -> Unit = { item, grid, columns, neighbors, itemModifier ->
+    val playbackInfo = swipePlaybackInfo[item.video.path]
+    val displayVideo = playbackInfo?.video ?: item.video
     val sourceLabel = when {
       isM3uPlaylist -> null
       item.protocol != null -> item.protocol.displayName
@@ -1005,7 +1005,10 @@ private fun PlaylistVideoListContent(
         selectionNeighbors = neighbors,
         isRecentlyPlayed = item.playlistItem.id == mostRecentlyPlayedItem?.playlistItem?.id,
         isFavorite = item.playlistItem.isFavorite,
-        video = item.video,
+        video = displayVideo,
+        listThumbnailWidth = if (displayVideo.isAudio) musicCoverArtSize.dp else 128.dp,
+        showSubtitleIndicator = showSubtitleIndicator,
+        progressPercentage = playbackInfo?.progressPercentage,
         showSourceWarning = isSourceDisconnected(item),
         sourceLabel = sourceLabel,
         sourceColor = sourceChipColor(item.protocol, item.isNetwork),
@@ -1019,13 +1022,11 @@ private fun PlaylistVideoListContent(
       )
     } else {
       VideoCard(
-        video = if (isAudio && !item.video.isAudio) item.video.copy(isAudio = true) else item.video,
+        video = if (isAudio && !displayVideo.isAudio) displayVideo.copy(isAudio = true) else displayVideo,
         onSwipeAction = swipeActions.video.takeUnless { selectionManager.isInSelectionMode || isReorderMode },
-        isWatched = swipePlaybackInfo[item.video.path]?.isWatched == true,
-        isOldAndUnplayed = swipePlaybackInfo[item.video.path]?.isOldAndUnplayed == true,
-        progressPercentage = if (item.playlistItem.lastPosition > 0 && item.video.duration > 0) {
-          item.playlistItem.lastPosition.toFloat() / item.video.duration.toFloat() * 100f
-        } else null,
+        isWatched = playbackInfo?.isWatched == true,
+        isOldAndUnplayed = playbackInfo?.isOldAndUnplayed == true,
+        progressPercentage = playbackInfo?.progressPercentage,
         isRecentlyPlayed = item.playlistItem.id == mostRecentlyPlayedItem?.playlistItem?.id,
         isSelected = selectionManager.isSelected(item),
         selectionNeighbors = neighbors,
@@ -1165,7 +1166,21 @@ private fun PlaylistVideoListContent(
               val elevation = dragElevation(isDragging)
 
               Row(
-                modifier = Modifier.fillMaxWidth().shadow(elevation, MaterialTheme.shapes.medium, clip = false),
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .shadow(elevation, MaterialTheme.shapes.medium, clip = false)
+                    // The row has no fill of its own; a lifted row needs one or its shadow shows through.
+                    .then(
+                      if (elevation > 0.dp) {
+                        Modifier.background(
+                          MaterialTheme.colorScheme.surfaceContainerHigh,
+                          MaterialTheme.shapes.medium,
+                        )
+                      } else {
+                        Modifier
+                      },
+                    ),
                 verticalAlignment = Alignment.CenterVertically,
               ) {
                 itemContent(item, false, 1, neighbors, Modifier.weight(1f))
@@ -1424,20 +1439,6 @@ private fun RemoveFromPlaylistDialog(
     shape = MaterialTheme.shapes.extraLarge,
   )
 }
-
-private fun getFileNameFromUri(
-  context: android.content.Context,
-  uri: Uri,
-): String? =
-  try {
-    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-      val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-      cursor.moveToFirst()
-      cursor.getString(nameIndex)
-    } ?: uri.lastPathSegment
-  } catch (e: Exception) {
-    uri.lastPathSegment
-  }
 
 private const val M3U_FILTER_ALL = "__m3u_all__"
 

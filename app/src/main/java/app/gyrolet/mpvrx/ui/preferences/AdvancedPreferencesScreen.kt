@@ -12,9 +12,11 @@ package app.gyrolet.mpvrx.ui.preferences
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.utils.telemetry.MeasureTelemetry
 import android.os.Build
 import android.os.Environment
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -82,7 +84,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import app.gyrolet.mpvrx.ui.preferences.components.AppListPreference as ListPreference
-import me.zhanghai.compose.preference.Preference
+import app.gyrolet.mpvrx.ui.preferences.components.PreferenceAction
+import app.gyrolet.mpvrx.ui.preferences.components.AppPreference as Preference
 import app.gyrolet.mpvrx.ui.preferences.components.AppSliderPreference as SliderPreference
 import org.koin.compose.koinInject
 import java.io.File
@@ -199,6 +202,15 @@ object AdvancedPreferencesScreen : Screen {
               onSuccess = { stats ->
                 importStats = stats
                 showImportDialog = true
+                if (stats.failed > 0) {
+                  val text =
+                    context.resources.getQuantityString(
+                      R.plurals.pref_import_skipped_invalid,
+                      stats.failed,
+                      stats.failed,
+                    )
+                  Toast.warning(context, text)
+                }
               },
               onFailure = { error ->
                 Toast
@@ -785,6 +797,7 @@ object AdvancedPreferencesScreen : Screen {
                   }
                 },
                 onClick = { isConfirmDialogShown = true },
+                action = PreferenceAction.Dialog,
               )
               }
 
@@ -962,6 +975,7 @@ object AdvancedPreferencesScreen : Screen {
                   }
                 },
                 onClick = { isClearThumbsConfirmShown = true },
+                action = PreferenceAction.Dialog,
               )
               }
 
@@ -1055,7 +1069,7 @@ object AdvancedPreferencesScreen : Screen {
             }
           }
 
-          // Logging Section
+          // Logging, diagnostics & privacy Section
           item {
             PreferenceSectionHeader(position = PreferenceSectionPosition.Last, title = stringResource(R.string.pref_section_logging))
           }
@@ -1065,6 +1079,29 @@ object AdvancedPreferencesScreen : Screen {
               val activity = LocalActivity.current!!
               val verboseLogging by preferences.verboseLogging.collectAsState()
               val debugLogSizeMb by preferences.debugLogSizeMb.collectAsState()
+
+              val measureEnabled by preferences.measureEnabled.collectAsState()
+
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_measure_enabled_title),
+                value = measureEnabled && BuildConfig.MEASURE_CONFIGURED,
+                enabled = BuildConfig.MEASURE_CONFIGURED,
+                onValueChange = { enabled ->
+                  if (MeasureTelemetry.setEnabled(enabled)) preferences.measureEnabled.set(enabled)
+                },
+                title = { Text(stringResource(R.string.pref_measure_enabled_title)) },
+                summary = {
+                  Text(
+                    stringResource(
+                      if (BuildConfig.MEASURE_CONFIGURED) R.string.pref_measure_enabled_summary
+                      else R.string.pref_measure_not_configured,
+                    ),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
 
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_advanced_verbose_logging_title),

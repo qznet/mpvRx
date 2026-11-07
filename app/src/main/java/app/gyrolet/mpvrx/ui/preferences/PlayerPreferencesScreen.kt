@@ -24,11 +24,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import app.gyrolet.mpvrx.presentation.components.AppAlertDialog as AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import app.gyrolet.mpvrx.presentation.components.AppDialogTextButton as TextButton
-import androidx.compose.material3.TextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -63,9 +63,9 @@ import app.gyrolet.mpvrx.ui.utils.currentMpvConfigOverrideOptions
 import app.gyrolet.mpvrx.ui.utils.popSafely
 import kotlinx.serialization.Serializable
 import app.gyrolet.mpvrx.ui.preferences.components.AppListPreference as ListPreference
-import me.zhanghai.compose.preference.Preference
+import app.gyrolet.mpvrx.ui.preferences.components.AppPreference as Preference
 import app.gyrolet.mpvrx.ui.preferences.components.AppSliderPreference as SliderPreference
-import me.zhanghai.compose.preference.TextFieldPreference
+import app.gyrolet.mpvrx.ui.preferences.components.AppTextFieldPreference as TextFieldPreference
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
 
@@ -91,6 +91,7 @@ object PlayerPreferencesScreen : Screen {
     var templateDraft by remember { mutableStateOf("") }
     var showVideoMiniPlayerDependencyDialog by remember { mutableStateOf(false) }
     Scaffold(
+      contentWindowInsets = settingsContentWindowInsets(),
       topBar = {
         SettingsTopAppBar(
           title = stringResource(id = R.string.pref_player),
@@ -498,39 +499,41 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
                 },
               )
 
-              PreferenceDivider()
+              if (app.gyrolet.mpvrx.BuildConfig.ENABLE_YTDLP) {
+                PreferenceDivider()
 
-              val enableWebStreamLinkIntents by preferences.enableWebStreamLinkIntents.collectAsState()
-              SwitchPreference(
-                modifier = Modifier.settingsSearchTarget(R.string.pref_player_web_stream_links_title),
-                value = enableWebStreamLinkIntents,
-                onValueChange = { enabled ->
-                  preferences.enableWebStreamLinkIntents.set(enabled)
-                  val componentName = ComponentName(context, "app.gyrolet.mpvrx.ui.player.WebStreamLinksActivityAlias")
-                  val newState =
-                    if (enabled) {
-                      PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-                    } else {
-                      PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                val enableWebStreamLinkIntents by preferences.enableWebStreamLinkIntents.collectAsState()
+                SwitchPreference(
+                  modifier = Modifier.settingsSearchTarget(R.string.pref_player_web_stream_links_title),
+                  value = enableWebStreamLinkIntents,
+                  onValueChange = { enabled ->
+                    preferences.enableWebStreamLinkIntents.set(enabled)
+                    val componentName = ComponentName(context, "app.gyrolet.mpvrx.ui.player.WebStreamLinksActivityAlias")
+                    val newState =
+                      if (enabled) {
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                      } else {
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                      }
+                    try {
+                      context.packageManager.setComponentEnabledSetting(
+                        componentName,
+                        newState,
+                        PackageManager.DONT_KILL_APP,
+                      )
+                    } catch (e: Exception) {
+                      android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
                     }
-                  try {
-                    context.packageManager.setComponentEnabledSetting(
-                      componentName,
-                      newState,
-                      PackageManager.DONT_KILL_APP,
+                  },
+                  title = { Text(stringResource(R.string.pref_player_web_stream_links_title)) },
+                  summary = {
+                    Text(
+                      stringResource(R.string.pref_player_web_stream_links_summary),
+                      color = MaterialTheme.colorScheme.outline,
                     )
-                  } catch (e: Exception) {
-                    android.util.Log.e("PlayerPreferencesScreen", "Failed to set alias state", e)
-                  }
-                },
-                title = { Text(stringResource(R.string.pref_player_web_stream_links_title)) },
-                summary = {
-                  Text(
-                    stringResource(R.string.pref_player_web_stream_links_summary),
-                    color = MaterialTheme.colorScheme.outline,
-                  )
-                },
-              )
+                  },
+                )
+              }
             }
           }
 
@@ -681,6 +684,7 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
 
                 val customIntroKeywordsEnabled by preferences.customIntroKeywordsEnabled.collectAsState()
                 SwitchPreference(
+                  modifier = Modifier.settingsSearchTarget(R.string.pref_custom_intro_keywords_enabled),
                   value = customIntroKeywordsEnabled,
                   onValueChange = preferences.customIntroKeywordsEnabled::set,
                   title = { Text(stringResource(R.string.pref_custom_intro_keywords_enabled)) },
@@ -698,6 +702,7 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
                   val customIntroKeywords by preferences.customIntroKeywords.collectAsState()
                   ExpressivePreferenceItem {
                   TextFieldPreference(
+                    modifier = Modifier.settingsSearchTarget(R.string.pref_custom_intro_keywords_title),
                     value = customIntroKeywords,
                     onValueChange = preferences.customIntroKeywords::set,
                     textToValue = { it },
@@ -733,6 +738,7 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
 
                 val customOutroKeywordsEnabled by preferences.customOutroKeywordsEnabled.collectAsState()
                 SwitchPreference(
+                  modifier = Modifier.settingsSearchTarget(R.string.pref_custom_outro_keywords_enabled),
                   value = customOutroKeywordsEnabled,
                   onValueChange = preferences.customOutroKeywordsEnabled::set,
                   title = { Text(stringResource(R.string.pref_custom_outro_keywords_enabled)) },
@@ -750,6 +756,7 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
                   val customOutroKeywords by preferences.customOutroKeywords.collectAsState()
                   ExpressivePreferenceItem {
                   TextFieldPreference(
+                    modifier = Modifier.settingsSearchTarget(R.string.pref_custom_outro_keywords_title),
                     value = customOutroKeywords,
                     onValueChange = preferences.customOutroKeywords::set,
                     textToValue = { it },
@@ -1033,6 +1040,7 @@ val savePositionOnQuit by preferences.savePositionOnQuit.collectAsState()
 
                 val webpLossless by preferences.screenshotWebpLossless.collectAsState()
                 SwitchPreference(
+                  modifier = Modifier.settingsSearchTarget(R.string.ui_webp_lossless),
                   value = webpLossless,
                   onValueChange = preferences.screenshotWebpLossless::set,
                   title = {

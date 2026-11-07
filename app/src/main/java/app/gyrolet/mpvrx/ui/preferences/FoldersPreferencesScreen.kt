@@ -59,7 +59,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import app.gyrolet.mpvrx.presentation.components.AppDropdownMenu as DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import app.gyrolet.mpvrx.presentation.components.AppDropdownMenuItem as DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +67,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import app.gyrolet.mpvrx.ui.components.IconSwitch
@@ -89,6 +89,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -181,10 +183,10 @@ object FoldersPreferencesScreen : Screen {
           } finally {
             libraryTaskRunning = false
           }
-        android.widget.Toast.makeText(
+        app.gyrolet.mpvrx.ui.components.AppToast.makeText(
           context,
           if (succeeded) doneMessage else R.string.pref_library_action_failed,
-          android.widget.Toast.LENGTH_SHORT,
+          app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT,
         ).show()
       }
     }
@@ -255,10 +257,10 @@ object FoldersPreferencesScreen : Screen {
             preferences.includeNoMediaFolders.set(true)
             onScanPreferenceChanged()
           } else {
-            android.widget.Toast.makeText(
+            app.gyrolet.mpvrx.ui.components.AppToast.makeText(
               context,
               R.string.pref_playstore_hidden_grant_failed,
-              android.widget.Toast.LENGTH_LONG,
+              app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
             ).show()
           }
         }
@@ -363,7 +365,9 @@ object FoldersPreferencesScreen : Screen {
               preferences.sharedIgnoredMarkers.set(ignoredMarkers.intersect(markers))
               onScanPreferenceChanged()
             },
-            modifier = Modifier.settingsSearchTarget(R.string.pref_hidden_scan_per_mode_title),
+            modifier = Modifier
+              .settingsSearchTarget(R.string.pref_hidden_scan_per_mode_title)
+              .settingsSearchTarget(R.string.pref_hidden_scan_enable_in),
           )
           // Scan filters finish the Media Library group; they open a list of limits.
           SettingsNavigationRow(
@@ -1327,28 +1331,21 @@ private fun HiddenScanSettingsCard(
       shape = shape,
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
+      Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
       Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text(
-            text = stringResource(R.string.pref_hidden_scan_per_mode_title),
-            style = MaterialTheme.typography.titleSmallEmphasized,
-            maxLines = 1,
-          )
-        }
+        Text(
+          text = stringResource(R.string.pref_hidden_scan_per_mode_title),
+          style = MaterialTheme.typography.titleSmall,
+          color = MaterialTheme.colorScheme.onSurface,
+          modifier = Modifier.weight(1f).semantics { heading() },
+        )
         if (showMasterToggle) {
           IconSwitch(checked = enabled, onCheckedChange = onEnabledChange)
         }
       }
-    }
-    Card(
-      modifier = Modifier.fillMaxWidth(),
-      shape = rememberConnectedShape(offset + 1, groupSize, ConnectedLayout.Vertical),
-      colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-      Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
       Text(
         text = stringResource(R.string.pref_hidden_scan_enable_in),
         style = MaterialTheme.typography.labelMedium,
@@ -1391,18 +1388,18 @@ private fun HiddenScanSettingsCard(
       checked = markerEnabled,
       enabled = enabled,
       onCheckedChange = onMarkerChanged,
-      shape = rememberConnectedShape(offset + 2, groupSize, ConnectedLayout.Vertical),
+      shape = rememberConnectedShape(offset + 1, groupSize, ConnectedLayout.Vertical),
     )
     CompactHiddenScanOption(
       title = stringResource(R.string.pref_hidden_scan_dot),
       checked = dotEnabled,
       enabled = enabled,
       onCheckedChange = onDotChanged,
-      shape = rememberConnectedShape(offset + 3, groupSize, ConnectedLayout.Vertical),
+      shape = rememberConnectedShape(offset + 2, groupSize, ConnectedLayout.Vertical),
     )
     Card(
       modifier = Modifier.fillMaxWidth(),
-      shape = rememberConnectedShape(offset + 4, groupSize, ConnectedLayout.Vertical),
+      shape = rememberConnectedShape(offset + 3, groupSize, ConnectedLayout.Vertical),
       colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
       LazyRow(
@@ -1645,18 +1642,33 @@ private fun AddFolderDialog(
             )
           }
           DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, onClick = {
-              selectionState = selectionState.selectAll(availableFolderPaths)
-              showDropdown = false
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.invert_selection)) }, onClick = {
-              selectionState = selectionState.invertSelection(availableFolderPaths)
-              showDropdown = false
-            })
-            DropdownMenuItem(text = { Text(stringResource(R.string.deselect_all)) }, onClick = {
-              selectionState = selectionState.clear()
-              showDropdown = false
-            })
+            DropdownMenuItem(
+              index = 0,
+              itemCount = 3,
+              text = { Text(stringResource(R.string.select_all)) },
+              onClick = {
+                selectionState = selectionState.selectAll(availableFolderPaths)
+                showDropdown = false
+              },
+            )
+            DropdownMenuItem(
+              index = 1,
+              itemCount = 3,
+              text = { Text(stringResource(R.string.invert_selection)) },
+              onClick = {
+                selectionState = selectionState.invertSelection(availableFolderPaths)
+                showDropdown = false
+              },
+            )
+            DropdownMenuItem(
+              index = 2,
+              itemCount = 3,
+              text = { Text(stringResource(R.string.deselect_all)) },
+              onClick = {
+                selectionState = selectionState.clear()
+                showDropdown = false
+              },
+            )
           }
         }
       }
@@ -1841,7 +1853,7 @@ private val VideoDurationFilterSeconds = listOf(0, 5, 15, 30, 60)
 private val FileSizeFilterBytes = listOf(0L, 500L * 1024L, 1024L * 1024L, 5L * 1024L * 1024L)
 
 // Rows drawn by HiddenScanSettingsCard, and the scan-filter rows that complete its group.
-private const val HIDDEN_SCAN_ROW_COUNT = 5
+private const val HIDDEN_SCAN_ROW_COUNT = 4
 private const val SCAN_FILTER_ROW_COUNT = 2
 
 private fun scanDurationLabel(seconds: Int, noLimit: String): String = if (seconds == 0) noLimit else "${seconds}s"

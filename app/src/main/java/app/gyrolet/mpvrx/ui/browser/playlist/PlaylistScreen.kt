@@ -33,7 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -111,14 +111,14 @@ private fun PlaylistEntity.belongsToAudioLibrary(): Boolean = isAudio && !isM3uP
 private fun PlaylistEntity.isFavoritesPlaylist(): Boolean =
   name.equals(PlaylistRepository.FAVORITES_PLAYLIST_NAME, ignoreCase = true)
 
-/** Favorites stay pinned on top; the chosen sort only orders the user's own playlists. */
+/** Added playlists come first; the chosen sort orders them ahead of the built-in favorites. */
 private fun arrangePlaylists(
   items: List<PlaylistWithCount>,
   type: PlaylistSortType,
   order: SortOrder,
 ): List<PlaylistWithCount> {
   val (favorites, others) = items.partition { it.playlist.isFavoritesPlaylist() }
-  return favorites + sortPlaylists(others, type, order)
+  return sortPlaylists(others, type, order) + favorites
 }
 
 private val LIBRARY_SORT_TYPES =
@@ -144,8 +144,8 @@ object PlaylistScreen : Screen {
       viewModel(factory = PlaylistViewModel.factory(context.applicationContext as android.app.Application))
 
     androidx.lifecycle.compose.LifecycleResumeEffect(viewModel) {
-      viewModel.refresh()
-      onPauseOrDispose { }
+      viewModel.startMonitoring()
+      onPauseOrDispose { viewModel.stopMonitoring() }
     }
     app.gyrolet.mpvrx.utils.permission.PermissionUtils.handleStoragePermission {
       viewModel.refresh(scanLocalFiles = true)
@@ -557,7 +557,7 @@ object PlaylistScreen : Screen {
     val folderGridColumnsPortrait by viewPreferences.gridColumnsPortrait.collectAsState()
     val folderGridColumnsLandscape by viewPreferences.gridColumnsLandscape.collectAsState()
     val navigationBarHeight = LocalNavigationBarHeight.current
-    val bottomOverlayClearance = maxOf(navigationBarHeight, NavigationBarState.miniPlayerClearance)
+    val bottomOverlayClearance = navigationBarHeight
     val isGridMode = mediaLayoutMode == MediaLayoutMode.GRID
     val hasEnoughItems = playlistsWithCount.size > 20
     val bottomPadding =

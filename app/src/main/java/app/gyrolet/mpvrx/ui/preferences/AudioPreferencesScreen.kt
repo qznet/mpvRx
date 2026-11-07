@@ -24,13 +24,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import app.gyrolet.mpvrx.ui.components.AppSlider as Slider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -38,7 +36,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -56,8 +53,6 @@ import app.gyrolet.mpvrx.preferences.MediaLibraryType
 import app.gyrolet.mpvrx.preferences.PlayerPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.presentation.Screen
-import app.gyrolet.mpvrx.ui.icons.Icon
-import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.utils.LocalBackStack
 import app.gyrolet.mpvrx.ui.utils.currentMpvConfigOverrideOptions
@@ -66,17 +61,10 @@ import app.gyrolet.mpvrx.utils.media.MediaLibraryEvents
 import kotlinx.serialization.Serializable
 import app.gyrolet.mpvrx.ui.preferences.components.AppListPreference as ListPreference
 import app.gyrolet.mpvrx.ui.preferences.components.AppSliderPreference as SliderPreference
-import me.zhanghai.compose.preference.TextFieldPreference
+import app.gyrolet.mpvrx.ui.preferences.components.AppTextFieldPreference as TextFieldPreference
 import org.koin.compose.koinInject
 
-import androidx.compose.foundation.layout.Row
-import app.gyrolet.mpvrx.presentation.components.AppAlertDialog as AlertDialog
-import androidx.compose.material3.Checkbox
-import app.gyrolet.mpvrx.presentation.components.AppDialogTextButton as TextButton
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import app.gyrolet.mpvrx.ui.browser.music.MusicTab
 
 @Serializable
@@ -87,6 +75,7 @@ object AudioPreferencesScreen : Screen {
     val context = LocalContext.current
     val resources = LocalResources.current
     val backstack = LocalBackStack.current
+    val playerPanel = LocalPlayerSettingsPanel.current
     val preferences = koinInject<AudioPreferences>()
     val configOwnedOptions = currentMpvConfigOverrideOptions()
     val browserPreferences = koinInject<BrowserPreferences>()
@@ -98,6 +87,7 @@ object AudioPreferencesScreen : Screen {
 
 
     Scaffold(
+      contentWindowInsets = settingsContentWindowInsets(),
       topBar = {
         SettingsTopAppBar(
           title = stringResource(R.string.pref_audio),
@@ -116,6 +106,7 @@ object AudioPreferencesScreen : Screen {
               .padding(padding)
               .then(settingsHighlight),
         ) {
+          if (!playerPanel) {
           item {
             PreferenceSectionHeader(position = PreferenceSectionPosition.First,
               title = stringResource(R.string.pref_media_library_section),
@@ -413,6 +404,7 @@ object AudioPreferencesScreen : Screen {
             }
           }
 
+          }
           item {
             PreferenceSectionHeader(position = PreferenceSectionPosition.Last, title = stringResource(R.string.pref_section_playback))
           }
@@ -493,6 +485,22 @@ object AudioPreferencesScreen : Screen {
               )
 
               PreferenceDivider()
+              val spatialAudio by preferences.spatialAudio.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_audio_spatial_title),
+                value = spatialAudio,
+                enabled = "af" !in configOwnedOptions,
+                onValueChange = { preferences.spatialAudio.set(it) },
+                title = { Text(stringResource(R.string.pref_audio_spatial_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_audio_spatial_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
               val drcEnabled by preferences.drcEnabled.collectAsState()
               SwitchPreference(
                 modifier = Modifier.settingsSearchTarget(R.string.pref_audio_drc_title),
@@ -503,6 +511,21 @@ object AudioPreferencesScreen : Screen {
                 summary = {
                   Text(
                     stringResource(R.string.pref_audio_drc_summary),
+                    color = MaterialTheme.colorScheme.outline,
+                  )
+                },
+              )
+
+              PreferenceDivider()
+              val ignoreAudioFocus by preferences.ignoreAudioFocus.collectAsState()
+              SwitchPreference(
+                modifier = Modifier.settingsSearchTarget(R.string.pref_ignore_audio_focus_title),
+                value = ignoreAudioFocus,
+                onValueChange = preferences.ignoreAudioFocus::set,
+                title = { Text(stringResource(R.string.pref_ignore_audio_focus_title)) },
+                summary = {
+                  Text(
+                    stringResource(R.string.pref_ignore_audio_focus_summary),
                     color = MaterialTheme.colorScheme.outline,
                   )
                 },
@@ -614,6 +637,7 @@ object AudioPreferencesScreen : Screen {
             }
           }
 
+          if (playerPanel) return@LazyColumn
           item {
             PreferenceSectionHeader(
               position = PreferenceSectionPosition.Middle,

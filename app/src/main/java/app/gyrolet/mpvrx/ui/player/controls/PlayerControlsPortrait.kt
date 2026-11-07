@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -32,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,7 +51,6 @@ import app.gyrolet.mpvrx.ui.player.controls.components.ControlsGroup
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonBorderColor
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonContainerColor
 import app.gyrolet.mpvrx.ui.player.controls.components.playerButtonContentColor
-import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
 import org.koin.compose.koinInject
@@ -60,7 +58,6 @@ import org.koin.compose.koinInject
 @Composable
 fun TopPlayerControlsPortrait(
   mediaTitle: String?,
-  hideBackground: Boolean,
   onBackPress: () -> Unit,
   onOpenSheet: (Sheets) -> Unit,
   viewModel: PlayerViewModel,
@@ -71,9 +68,10 @@ fun TopPlayerControlsPortrait(
   translationStatus: String = "",
   translatingTrackName: String = "",
 ) {
-  PlayerButtonTheme(hideBackground) {
+  PlayerButtonTheme {
     val playlistModeEnabled = viewModel.hasPlaylistSupport()
     val clickEvent = LocalPlayerButtonsClickEvent.current
+    val titleHeight = playerTitleHeight(45.dp, MaterialTheme.typography.titleMedium.lineHeight)
 
     Column(
       modifier =
@@ -88,8 +86,8 @@ fun TopPlayerControlsPortrait(
           ControlsButton(
             icon = Icons.RoundedFilled.ArrowBack,
             onClick = onBackPress,
-            color = if (hideBackground) controlColor else playerButtonContentColor(),
-            modifier = Modifier.size(45.dp),
+            color = playerButtonContentColor(),
+            modifier = Modifier.size(48.dp),
           )
 
           Column(
@@ -106,21 +104,21 @@ fun TopPlayerControlsPortrait(
                   }
                 },
                 isInteractive = playlistModeEnabled,
-                height = 45.dp,
+                height = titleHeight,
                 horizontalPadding = 14.dp,
               ) {
                 Text(
                   mediaTitle ?: "",
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis,
-                  style = MaterialTheme.typography.bodyMedium,
-                  modifier = Modifier.weight(1f, fill = false),
+                  style = MaterialTheme.typography.titleMedium,
+                  modifier = Modifier.weight(1f, fill = false).playerTitleMarquee(),
                 )
                 viewModel.getPlaylistInfo()?.let { playlistInfo ->
                   Text(
                     " • $playlistInfo",
                     maxLines = 1,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = LocalContentColor.current.copy(alpha = 0.7f),
                   )
                 }
@@ -134,42 +132,32 @@ fun TopPlayerControlsPortrait(
 
               Surface(
                 shape = CircleShape,
-                color =
-                  if (hideBackground) {
-                    Color.Transparent
-                  } else {
-                    playerButtonContainerColor()
-                  },
-                contentColor = if (hideBackground) controlColor else playerButtonContentColor(),
+                color = playerButtonContainerColor(),
+                contentColor = playerButtonContentColor(),
                 onClick = {
                   clickEvent()
                   onOpenSheet(Sheets.Playlist)
                 },
                 enabled = playlistModeEnabled,
-                border =
-                  if (hideBackground) {
-                    null
-                  } else {
-                    BorderStroke(1.dp, playerButtonBorderColor())
-                  },
-                modifier = Modifier.height(45.dp),
+                border = BorderStroke(1.dp, playerButtonBorderColor()),
+                modifier = Modifier.heightIn(min = titleHeight),
               ) {
                 Row(
                   verticalAlignment = Alignment.CenterVertically,
-                  modifier = Modifier.padding(horizontal = 14.dp),
+                  modifier = Modifier.heightIn(min = titleHeight).padding(horizontal = 14.dp, vertical = 4.dp),
                 ) {
                   Text(
                     mediaTitle ?: "",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f, fill = false).playerTitleMarquee(),
                   )
                   viewModel.getPlaylistInfo()?.let { playlistInfo ->
                     Text(
                       " • $playlistInfo",
                       maxLines = 1,
-                      style = MaterialTheme.typography.bodySmall,
+                      style = MaterialTheme.typography.bodyMedium,
                       color = LocalContentColor.current.copy(alpha = 0.7f),
                     )
                   }
@@ -260,7 +248,6 @@ fun BottomPlayerControlsPortrait(
   currentZoom: Float,
   aspect: VideoAspect,
   mediaTitle: String?,
-  hideBackground: Boolean,
   decoder: app.gyrolet.mpvrx.ui.player.Decoder,
   playbackSpeed: Float,
   onBackPress: () -> Unit,
@@ -268,21 +255,27 @@ fun BottomPlayerControlsPortrait(
   onOpenPanel: (Panels) -> Unit,
   viewModel: PlayerViewModel,
   activity: PlayerActivity,
+  alignToEnd: Boolean = false,
+  horizontalArrangement: Arrangement.Horizontal =
+    Arrangement.spacedBy(
+      MaterialTheme.spacing.small,
+      Alignment.CenterHorizontally,
+    ),
 ) {
-  PlayerButtonTheme(hideBackground) {
+  PlayerButtonTheme {
     val enableLiquidGlass = liquidGlassActive()
     Row(
       modifier =
         Modifier
           .fillMaxWidth()
-          .horizontalScroll(rememberScrollState())
+          .horizontalScroll(rememberScrollState(), reverseScrolling = alignToEnd)
           // Padding after horizontalScroll belongs to scroll content, not its clipping viewport.
           // Vertical room is only for the liquid-glass shadow; the player places this row with its shared gaps.
           .padding(
             horizontal = if (enableLiquidGlass) 8.dp else 0.dp,
-            vertical = if (enableLiquidGlass) 6.dp else 0.dp,
+            vertical = if (enableLiquidGlass) PortraitActionShadowRoom else 0.dp,
           ),
-      horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.medium, Alignment.CenterHorizontally),
+      horizontalArrangement = horizontalArrangement,
       verticalAlignment = Alignment.CenterVertically,
     ) {
       buttons.forEach { button ->
@@ -295,7 +288,6 @@ fun BottomPlayerControlsPortrait(
           currentZoom = currentZoom,
           aspect = aspect,
           mediaTitle = mediaTitle,
-          hideBackground = hideBackground,
           onBackPress = onBackPress,
           onOpenSheet = onOpenSheet,
           onOpenPanel = onOpenPanel,
@@ -303,7 +295,7 @@ fun BottomPlayerControlsPortrait(
           activity = activity,
           decoder = decoder,
           playbackSpeed = playbackSpeed,
-          buttonSize = 44.dp, // Slightly more compact size
+          buttonSize = 48.dp,
         )
       }
       if (showVideoQualitySelector) {
@@ -311,7 +303,7 @@ fun BottomPlayerControlsPortrait(
           icon = Icons.RoundedFilled.Hd,
           onClick = { onOpenSheet(Sheets.VideoQuality) },
           title = stringResource(R.string.player_video_quality_button),
-          modifier = Modifier.size(44.dp),
+          modifier = Modifier.size(48.dp),
         )
       }
     }

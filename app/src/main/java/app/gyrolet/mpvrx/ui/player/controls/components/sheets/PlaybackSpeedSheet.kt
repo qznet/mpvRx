@@ -13,7 +13,6 @@ import app.gyrolet.mpvrx.ui.player.PlaybackSession
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AudioPreferences
@@ -48,7 +48,6 @@ import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.preferences.components.SwitchPreference
 import app.gyrolet.mpvrx.ui.player.controls.components.tvFocusHighlight
 import app.gyrolet.mpvrx.ui.theme.spacing
-import me.zhanghai.compose.preference.ProvidePreferenceLocals
 import org.koin.compose.koinInject
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -76,26 +75,47 @@ fun PlaybackSpeedSheet(
       speedHaptics.move(speed, target)
     }
   }
-  PlayerSheet(onDismissRequest = onDismissRequest, title = stringResource(R.string.btn_label_speed)) {
+  PlayerSheet(
+    onDismissRequest = onDismissRequest,
+    title = stringResource(R.string.btn_label_speed),
+    bottomBar = {
+      Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        Button(
+          modifier = Modifier.weight(1f),
+          onClick = { onMakeDefault(speed) },
+          enabled = speedControlEnabled,
+        ) {
+          Text(text = stringResource(id = R.string.player_sheets_speed_make_default))
+        }
+        Button(
+          onClick = {
+            onResetDefault()
+            onResetPresets()
+            onSpeedChange(1.0f)
+          },
+          enabled = speedControlEnabled,
+        ) {
+          Text(text = stringResource(id = R.string.generic_reset))
+        }
+      }
+    },
+  ) {
     Column(
       modifier
         .verticalScroll(rememberScrollState())
-        .padding(vertical = 8.dp),
-      verticalArrangement = Arrangement.spacedBy(16.dp),
+        .padding(vertical = 4.dp),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      // Slider and +/- Buttons
-
-      // Speed Label and Value
-      Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = MaterialTheme.spacing.medium),
-        horizontalAlignment = Alignment.CenterHorizontally,
-      ) {
-        Text(
-          text = "${speed.toFixed(2)}x",
-          style = MaterialTheme.typography.headlineMedium,
-          fontWeight = FontWeight.Bold,
-        )
-      }
+      Text(
+        text = "${speed.toFixed(2)}x",
+        modifier = Modifier.fillMaxWidth(),
+        style = MaterialTheme.typography.headlineMedium,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+      )
 
       // Slider and +/- Buttons
       Row(
@@ -151,7 +171,6 @@ fun PlaybackSpeedSheet(
 
         LazyRow(
           modifier = Modifier.weight(1f),
-          contentPadding = PaddingValues(end = MaterialTheme.spacing.small),
           horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.small),
         ) {
           items(speedPresets, key = { it }) { presetSpeed ->
@@ -185,79 +204,38 @@ fun PlaybackSpeedSheet(
         val isCurrentSpeedSaved = speedPresets.any { kotlin.math.abs(it - speed) < 0.001f }
         val isDefaultPreset = defaultPresets.any { kotlin.math.abs(it - speed) < 0.001f }
 
-        androidx.compose.foundation.layout.Box(Modifier.size(48.dp)) {
-          if (isCurrentSpeedSaved && !isDefaultPreset) {
-            PlayerSheetAction(
-              icon = Icons.RoundedFilled.Remove,
-              label = stringResource(R.string.ui_remove),
-              onClick = { onRemoveSpeedPreset(speed) },
-              enabled = speedControlEnabled,
-            )
-          } else if (!isCurrentSpeedSaved) {
-            PlayerSheetAction(
-              icon = Icons.RoundedFilled.Add,
-              label = stringResource(R.string.ui_add),
-              onClick = { onAddSpeedPreset(speed) },
-              enabled = speedControlEnabled,
-            )
-          }
+        if (isCurrentSpeedSaved && !isDefaultPreset) {
+          PlayerSheetAction(
+            icon = Icons.RoundedFilled.Remove,
+            label = stringResource(R.string.ui_remove),
+            onClick = { onRemoveSpeedPreset(speed) },
+            enabled = speedControlEnabled,
+          )
+        } else if (!isCurrentSpeedSaved) {
+          PlayerSheetAction(
+            icon = Icons.RoundedFilled.Add,
+            label = stringResource(R.string.ui_add),
+            onClick = { onAddSpeedPreset(speed) },
+            enabled = speedControlEnabled,
+          )
         }
       }
 
-      ProvidePreferenceLocals {
-        val audioPreferences = koinInject<AudioPreferences>()
-
-        // Audio Pitch Correction
-        val pitchCorrection by audioPreferences.audioPitchCorrection.collectAsState()
-
-        SwitchPreference(
-          value = pitchCorrection,
-          enabled = pitchCorrectionEnabled,
-          onValueChange = { newValue ->
-            audioPreferences.audioPitchCorrection.set(newValue)
-            PlaybackSession.setPropertyBoolean("audio-pitch-correction", newValue)
-          },
-          title = {
-            Text(
-              text = stringResource(id = R.string.pref_audio_pitch_correction_title),
-              style = MaterialTheme.typography.bodyMedium,
-              fontWeight = FontWeight.SemiBold,
-            )
-          },
-          summary = {
-            Text(
-              text = stringResource(id = R.string.pref_audio_pitch_correction_summary),
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          },
-        )
-      }
-
-      Row(
-        modifier =
-          Modifier
-            .padding(horizontal = MaterialTheme.spacing.medium),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacing.smaller),
-      ) {
-        Button(
-          modifier = Modifier.weight(1f),
-          onClick = { onMakeDefault(speed) },
-          enabled = speedControlEnabled,
-        ) {
-          Text(text = stringResource(id = R.string.player_sheets_speed_make_default))
-        }
-        Button(
-          onClick = {
-            onResetDefault()
-            onResetPresets()
-            onSpeedChange(1.0f)
-          },
-          enabled = speedControlEnabled,
-        ) {
-          Text(text = stringResource(id = R.string.generic_reset))
-        }
-      }
+      val audioPreferences = koinInject<AudioPreferences>()
+      val pitchCorrection by audioPreferences.audioPitchCorrection.collectAsState()
+      SwitchPreference(
+        value = pitchCorrection,
+        enabled = pitchCorrectionEnabled,
+        onValueChange = { newValue ->
+          audioPreferences.audioPitchCorrection.set(newValue)
+          PlaybackSession.setPropertyBoolean("audio-pitch-correction", newValue)
+        },
+        title = { Text(stringResource(R.string.pref_audio_pitch_correction_title)) },
+        summary = { Text(stringResource(R.string.pref_audio_pitch_correction_summary)) },
+        titleStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+        summaryStyle = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+      )
     }
   }
 }

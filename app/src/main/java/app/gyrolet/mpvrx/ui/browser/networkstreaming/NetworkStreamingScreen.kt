@@ -42,7 +42,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
@@ -135,13 +135,13 @@ object NetworkStreamingScreen : Screen {
     val context = LocalContext.current
     val viewModel: NetworkStreamingViewModel =
       viewModel(factory = NetworkStreamingViewModel.factory(context.applicationContext as android.app.Application))
-    val torrentStreamingEngine = koinInject<TorrentStreamingEngine>()
-    val streamEntryRepository = koinInject<NetworkStreamEntryRepository>()
     val ytdlPreferences = koinInject<YtdlPreferences>()
     val bookmarkPreferences = koinInject<NetworkBookmarkPreferences>()
-    val wyzieSearchRepository = koinInject<WyzieSearchRepository>()
     val linkDownloadCoordinator = koinInject<app.gyrolet.mpvrx.domain.download.LinkDownloadCoordinator>()
-    val torrentPickerViewModel: TorrentSelectionViewModel =
+    val torrentPickerViewModel: TorrentSelectionViewModel? = if (app.gyrolet.mpvrx.BuildConfig.ENABLE_TORRENT) {
+      val torrentStreamingEngine = koinInject<TorrentStreamingEngine>()
+      val streamEntryRepository = koinInject<NetworkStreamEntryRepository>()
+      val wyzieSearchRepository = koinInject<WyzieSearchRepository>()
       viewModel(
         key = "network_torrent_picker",
         factory =
@@ -151,7 +151,10 @@ object NetworkStreamingScreen : Screen {
             wyzieSearchRepository = wyzieSearchRepository,
           ),
       )
-    val torrentPickerState by torrentPickerViewModel.uiState.collectAsState()
+    } else {
+      null
+    }
+    val torrentPickerState = torrentPickerViewModel?.uiState?.collectAsState()?.value
     val connections by viewModel.connections.collectAsState()
     val folderBookmarks by bookmarkPreferences.bookmarks.collectAsState()
     val connectionStatuses by viewModel.connectionStatuses.collectAsState()
@@ -207,6 +210,7 @@ object NetworkStreamingScreen : Screen {
     }
 
     LaunchedEffect(torrentPickerViewModel) {
+      if (torrentPickerViewModel == null) return@LaunchedEffect
       torrentPickerViewModel.launches.collect { request ->
         showTorrentPicker = false
         MediaUtils.playFile(
@@ -480,7 +484,7 @@ object NetworkStreamingScreen : Screen {
                   val playableSource = normalizeTorrentSource(url) ?: url.trim()
                   if (isTorrentSource(playableSource)) {
                     showTorrentPicker = true
-                    torrentPickerViewModel.open(TorrentSelectionInput(source = playableSource))
+                    torrentPickerViewModel?.open(TorrentSelectionInput(source = playableSource))
                   } else {
                     playLinkGatingYtdlp(playableSource)
                   }
@@ -498,16 +502,16 @@ object NetworkStreamingScreen : Screen {
                   val playableSource = normalizeTorrentSource(entry.canonicalSourceUri) ?: entry.canonicalSourceUri.trim()
                   if (isTorrentSource(playableSource)) {
                     showTorrentPicker = true
-                    torrentPickerViewModel.open(TorrentSelectionInput(source = playableSource, title = entry.fileName))
+                    torrentPickerViewModel?.open(TorrentSelectionInput(source = playableSource, title = entry.fileName))
                   } else {
                     when (linkDownloadCoordinator.enqueue(playableSource, entry.fileName)) {
                       app.gyrolet.mpvrx.domain.download.LinkDownloadCoordinator.Route.UNSUPPORTED ->
-                        android.widget.Toast
-                          .makeText(context, R.string.downloads_location_invalid, android.widget.Toast.LENGTH_SHORT)
+                        app.gyrolet.mpvrx.ui.components.AppToast
+                          .makeText(context, R.string.downloads_location_invalid, app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT)
                           .show()
                       else ->
-                        android.widget.Toast
-                          .makeText(context, R.string.downloads_started, android.widget.Toast.LENGTH_SHORT)
+                        app.gyrolet.mpvrx.ui.components.AppToast
+                          .makeText(context, R.string.downloads_started, app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT)
                           .show()
                     }
                   }
@@ -537,6 +541,7 @@ object NetworkStreamingScreen : Screen {
                       connectionId = item.connection.id,
                       connectionName = item.connection.name,
                       currentPath = item.bookmark.path,
+                      currentFolderName = item.bookmark.folderName,
                     ),
                   )
                 },
@@ -644,7 +649,7 @@ object NetworkStreamingScreen : Screen {
           val playableSource = normalizeTorrentSource(url) ?: url.trim()
           if (isTorrentSource(playableSource)) {
             showTorrentPicker = true
-            torrentPickerViewModel.open(TorrentSelectionInput(source = playableSource))
+            torrentPickerViewModel?.open(TorrentSelectionInput(source = playableSource))
           } else {
             viewModel.saveLinkToMedia(playableSource)
             MediaUtils.playFile(playableSource, context, "network_stream")
@@ -665,7 +670,7 @@ object NetworkStreamingScreen : Screen {
         )
       }
 
-      if (showTorrentPicker) {
+      if (showTorrentPicker && torrentPickerViewModel != null && torrentPickerState != null) {
         TorrentSelectionScreen(
           state = torrentPickerState,
           onBack = {
@@ -697,7 +702,7 @@ private fun AddMediaDialog(
     title = { Text(stringResource(R.string.ui_saved_media)) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        val p2pAvailable = !app.gyrolet.mpvrx.BuildConfig.IS_PLAY_STORE_BUILD
+        val p2pAvailable = app.gyrolet.mpvrx.BuildConfig.ENABLE_TORRENT
         Text(
           text =
             if (p2pAvailable) {
@@ -781,7 +786,7 @@ private fun LocalNetworkContent(
   onManageBookmarks: () -> Unit,
 ) {
   val navBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
-  val bottomOverlayClearance = maxOf(navBarHeight, app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance)
+  val bottomOverlayClearance = navBarHeight
   LazyColumn(
     modifier = Modifier.fillMaxSize(),
     contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = bottomOverlayClearance + 16.dp),
@@ -860,7 +865,7 @@ private fun MediaContent(
 
   var selectedDetailGroup by remember { mutableStateOf<MediaStreamGroup?>(null) }
   val navBarHeight = app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight.current
-  val bottomOverlayClearance = maxOf(navBarHeight, app.gyrolet.mpvrx.ui.browser.NavigationBarState.miniPlayerClearance)
+  val bottomOverlayClearance = navBarHeight
 
   val heroGroups =
     remember(mediaGroups) {
@@ -934,7 +939,11 @@ private fun MediaContent(
             ) {
               TorrentSectionHeader(
                 title = "Continue Watching",
-                subtitle = "Resume your recent streams and torrents",
+                subtitle = if (app.gyrolet.mpvrx.BuildConfig.ENABLE_TORRENT) {
+                  "Resume your recent streams and torrents"
+                } else {
+                  stringResource(R.string.ui_recent_streams)
+                },
               )
               androidx.compose.foundation.lazy.LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

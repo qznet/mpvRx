@@ -33,7 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import app.gyrolet.mpvrx.presentation.components.AppDialogTextButton as TextButton
@@ -82,10 +82,10 @@ fun PlaylistActionSheet(
       zipImportJob = zipScope.launch {
         try {
           onCreateZipPlaylist(uri).onSuccess {
-            android.widget.Toast.makeText(context, app.gyrolet.mpvrx.R.string.playlist_zip_import_success, android.widget.Toast.LENGTH_SHORT).show()
+            app.gyrolet.mpvrx.ui.components.AppToast.makeText(context, app.gyrolet.mpvrx.R.string.playlist_zip_import_success, app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT).show()
             onDismiss()
           }.onFailure {
-            android.widget.Toast.makeText(context, app.gyrolet.mpvrx.R.string.playlist_zip_import_failed, android.widget.Toast.LENGTH_LONG).show()
+            app.gyrolet.mpvrx.ui.components.AppToast.makeText(context, app.gyrolet.mpvrx.R.string.playlist_zip_import_failed, app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG).show()
           }
         } finally {
           isImportingZip = false
@@ -101,10 +101,10 @@ fun PlaylistActionSheet(
         app.gyrolet.mpvrx.utils.media.MediaLibraryEvents.notifyChanged()
         onDismiss()
       }.onFailure { error ->
-        android.widget.Toast.makeText(
+        app.gyrolet.mpvrx.ui.components.AppToast.makeText(
           context,
           context.getString(app.gyrolet.mpvrx.R.string.playlist_local_access_failed, error.localizedMessage.orEmpty()),
-          android.widget.Toast.LENGTH_LONG,
+          app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
         ).show()
       }
     }
@@ -112,7 +112,10 @@ fun PlaylistActionSheet(
 
   if (!isOpen) return
 
-  val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+  val sheetState = rememberBottomSheetState(
+    initialValue = SheetValue.Hidden,
+    enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+  )
 
   ModalBottomSheet(
     onDismissRequest = {
@@ -366,19 +369,19 @@ fun PlaylistActionSheet(
               coroutineScope.launch {
                 try {
                   onCreatePlaylist(playlistName.trim())
-                  android.widget.Toast
+                  app.gyrolet.mpvrx.ui.components.AppToast
                     .makeText(
                       context,
                       context.getString(app.gyrolet.mpvrx.R.string.ui_playlist_created_successfully),
-                      android.widget.Toast.LENGTH_SHORT,
+                      app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT,
                     ).show()
                   showCreateDialog = false
                 } catch (e: Exception) {
-                  android.widget.Toast
+                  app.gyrolet.mpvrx.ui.components.AppToast
                     .makeText(
                       context,
                       "Failed to create playlist: ${e.message}",
-                      android.widget.Toast.LENGTH_LONG,
+                      app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
                     ).show()
                 }
               }
@@ -412,10 +415,10 @@ fun PlaylistActionSheet(
           val permissionGranted = runCatching {
             context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
           }.onFailure { error ->
-            android.widget.Toast.makeText(
+            app.gyrolet.mpvrx.ui.components.AppToast.makeText(
               context,
               context.getString(app.gyrolet.mpvrx.R.string.playlist_local_access_failed, error.localizedMessage.orEmpty()),
-              android.widget.Toast.LENGTH_LONG,
+              app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
             ).show()
           }.isSuccess
           if (!permissionGranted) return@rememberLauncherForActivityResult
@@ -424,20 +427,20 @@ fun PlaylistActionSheet(
             val result = onCreateM3UPlaylistFromFile(it)
             result
               .onSuccess {
-                android.widget.Toast
+                app.gyrolet.mpvrx.ui.components.AppToast
                   .makeText(
                     context,
                     context.getString(app.gyrolet.mpvrx.R.string.playlist_add_success),
-                    android.widget.Toast.LENGTH_SHORT,
+                    app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT,
                   ).show()
                 showM3UDialog = false
                 onDismiss()
               }.onFailure { error ->
-                android.widget.Toast
+                app.gyrolet.mpvrx.ui.components.AppToast
                   .makeText(
                     context,
                     "Failed to add M3U playlist: ${error.message}",
-                    android.widget.Toast.LENGTH_LONG,
+                    app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
                   ).show()
               }
             isLoading = false
@@ -579,23 +582,23 @@ fun PlaylistActionSheet(
                   )
                 result
                   .onSuccess {
-                    android.widget.Toast
+                    app.gyrolet.mpvrx.ui.components.AppToast
                       .makeText(
                         context,
                         context.getString(app.gyrolet.mpvrx.R.string.playlist_import_success),
-                        android.widget.Toast.LENGTH_SHORT,
+                        app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT,
                       ).show()
                     showM3UDialog = false
                     onDismiss()
                   }.onFailure { error ->
-                    android.widget.Toast
+                    app.gyrolet.mpvrx.ui.components.AppToast
                       .makeText(
                         context,
                         context.getString(
                           app.gyrolet.mpvrx.R.string.playlist_import_error,
                           error.message ?: context.getString(app.gyrolet.mpvrx.R.string.generic_unknown_error),
                         ),
-                        android.widget.Toast.LENGTH_LONG,
+                        app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_LONG,
                       ).show()
                   }
                 isLoading = false

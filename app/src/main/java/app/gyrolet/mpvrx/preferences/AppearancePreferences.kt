@@ -11,6 +11,7 @@ package app.gyrolet.mpvrx.preferences
 
 import android.content.Context
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -33,6 +34,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.Preference
 import app.gyrolet.mpvrx.preferences.preference.getEnum
@@ -94,6 +96,7 @@ class AppearancePreferences(
   val liquidGlassHighlightWidth = preferenceStore.getFloat("liquid_glass_highlight_width", 1f)
   val liquidGlassHighlightBlur = preferenceStore.getFloat("liquid_glass_highlight_blur", 1f)
   val navigationBarGlow = preferenceStore.getBoolean("navigation_bar_glow", true)
+  val connectedMiniPlayerNavigation = preferenceStore.getBoolean("connected_mini_player_navigation", true)
   // Android 11 and older have no RenderEffect blur for the floating bar.
   val legacyNavigationBar =
     preferenceStore.getBoolean("legacy_navigation_bar", Build.VERSION.SDK_INT < Build.VERSION_CODES.S)
@@ -103,20 +106,21 @@ class AppearancePreferences(
   val googleFontRevision = preferenceStore.getInt("google_font_revision", 0)
   val appUiScale = preferenceStore.getFloat("app_ui_scale", 0.95f)
   val unlimitedNameLines = preferenceStore.getBoolean("unlimited_name_lines", false)
-  val hidePlayerButtonsBackground = preferenceStore.getBoolean("hide_player_buttons_background", false)
   val forceDarkPlayerButtonsBackground = preferenceStore.getBoolean("force_dark_player_buttons_background", false)
   val showUnplayedOldVideoLabel = preferenceStore.getBoolean("show_unplayed_old_video_label", true)
   val unplayedOldVideoDays = preferenceStore.getInt("unplayed_old_video_days", 7)
   val showNetworkThumbnails = preferenceStore.getBoolean("show_network_thumbnails", false)
   val seekbarStyle = preferenceStore.getEnum("seekbar_style", SeekbarStyle.Thick)
-  val portraitPlaybackControlsPosition =
-    preferenceStore.getEnum("portrait_playback_controls_position", PlaybackControlsPosition.Center)
-  val landscapePlaybackControlsPosition =
-    preferenceStore.getEnum("landscape_playback_controls_position", PlaybackControlsPosition.Center)
   val portraitSeekbarPlacement =
     preferenceStore.getEnum("portrait_seekbar_placement", SeekbarPlacement.AboveButtons)
   val landscapeSeekbarPlacement =
-    preferenceStore.getEnum("landscape_seekbar_placement", SeekbarPlacement.BelowButtons)
+    preferenceStore.getEnum("landscape_seekbar_placement", SeekbarPlacement.AboveButtons)
+  val portraitPlaybackControlsPlacement =
+    preferenceStore.getEnum("portrait_playback_controls_placement", PlaybackControlsPlacement.Center)
+  // Reuse the existing key so an explicitly saved Center choice is restored.
+  // Both legacy seekbar-relative values use the combined landscape button row.
+  val landscapePlaybackControlsPlacement =
+    preferenceStore.getEnum("landscape_playback_controls_placement", PlaybackControlsPlacement.BelowSeekbar)
   // Absolute background level: 0.55 keeps each button's designed tint, 1 is opaque, 0 is clear.
   // A new key, because "player_buttons_opacity" stored a multiplier whose 100% kept buttons translucent.
   val playerButtonsBackgroundOpacity = preferenceStore.getFloat("player_buttons_background_opacity", 0.55f)
@@ -174,13 +178,13 @@ class AppearancePreferences(
   val bottomRightControls =
     preferenceStore.getString(
       "bottom_right_controls",
-      "PICTURE_IN_PICTURE,ASPECT_RATIO",
+      "PLAYLIST,ASPECT_RATIO",
     )
 
   val bottomLeftControls =
     preferenceStore.getString(
       "bottom_left_controls",
-      "BACKGROUND_PLAYBACK,LOCK_CONTROLS,SCREEN_ROTATION,PLAYBACK_SPEED",
+      "LOCK_CONTROLS,PLAYBACK_SPEED",
     )
 
   val portraitBottomControls =
@@ -265,22 +269,21 @@ class AppearancePreferences(
           null
         }
       }.filter { it != PlayerButton.NONE }
+      // A layout restored from the FongMi build must not show motion interpolation on another APK.
+      .filter { it in allPlayerButtons || it == PlayerButton.BACK_ARROW || it == PlayerButton.VIDEO_TITLE }
       .filter { usedButtons.add(it) }
       .toList()
 }
 
-enum class PlaybackControlsPosition(
-  val displayName: String,
-) {
-  Center("Center of screen"),
-  BelowSeekbar("Below seekbar"),
+enum class SeekbarPlacement {
+  AboveButtons,
+  BelowButtons,
 }
 
-enum class SeekbarPlacement(
-  val displayName: String,
-) {
-  AboveButtons("Above layout buttons"),
-  BelowButtons("Below layout buttons"),
+enum class PlaybackControlsPlacement(@StringRes val titleRes: Int) {
+  Center(R.string.pref_layout_playback_center),
+  AboveSeekbar(R.string.pref_layout_playback_above_seekbar),
+  BelowSeekbar(R.string.pref_layout_playback_below_seekbar),
 }
 
 @Composable
@@ -340,3 +343,4 @@ fun MultiChoiceSegmentedButton(
     }
   }
 }
+

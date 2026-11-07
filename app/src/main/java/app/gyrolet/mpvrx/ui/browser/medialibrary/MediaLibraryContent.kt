@@ -11,13 +11,12 @@ package app.gyrolet.mpvrx.ui.browser.medialibrary
 
 import android.content.Intent
 import android.os.Environment
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import app.gyrolet.mpvrx.ui.theme.AppMotion
@@ -31,7 +30,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
@@ -80,7 +78,6 @@ import app.gyrolet.mpvrx.preferences.SecureFolderPreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
 import app.gyrolet.mpvrx.ui.browser.MainScreen
 import app.gyrolet.mpvrx.ui.browser.LocalNavigationBarHeight
-import app.gyrolet.mpvrx.ui.browser.NavigationBarState
 import app.gyrolet.mpvrx.presentation.components.captureLiquidGlassBackdrop
 import app.gyrolet.mpvrx.ui.browser.components.BrowserBottomBar
 import app.gyrolet.mpvrx.ui.browser.components.rememberBrowserBottomBarBackdrop
@@ -249,7 +246,7 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
     coroutineScope.launch {
       val result = secureFolderRepository.moveIn(context, selectedVideos)
       moveToSecureProgressOpen.value = false
-      selectionManager.clear()
+      if (result.isSuccess) selectionManager.clear()
       viewModel.refresh()
       result
         .onSuccess { batch ->
@@ -260,8 +257,11 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
               context.getString(R.string.secure_folder_moved_partial, batch.succeededIds.size, batch.failedIds.size)
             }
           Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }.onFailure {
-          Toast.makeText(context, context.getString(R.string.secure_folder_move_failed), Toast.LENGTH_SHORT).show()
+        }.onFailure { error ->
+          Toast.error(context, context.getString(
+            R.string.secure_folder_move_failed_details,
+            error.localizedMessage ?: context.getString(R.string.generic_unknown_error),
+          ))
         }
     }
   }
@@ -527,16 +527,8 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
                 onCheckedChange = {
                   if (quickPlayFabDirect) {
                     coroutineScope.launch {
-                      val recentlyPlayedVideos = RecentlyPlayedOps.getRecentlyPlayed(limit = 1)
-                      val lastPlayed = recentlyPlayedVideos.firstOrNull()
-                      val targetVideo =
-                        if (lastPlayed != null) {
-                          filteredVideosWithInfo.firstOrNull { it.video.path == lastPlayed.filePath }?.video
-                        } else {
-                          null
-                        }
-
-                      playFromMediaLibrary(targetVideo ?: filteredVideosWithInfo.first().video)
+                      val videos = filteredVideosWithInfo.map { it.video }
+                      playFromMediaLibrary(RecentlyPlayedOps.lastPlayedOf(videos) ?: videos.first())
                     }
                   } else {
                     isFabExpanded.value = !isFabExpanded.value
@@ -578,16 +570,8 @@ fun MediaLibraryContent(forceAudio: Boolean = false) {
               onClick = {
                 isFabExpanded.value = false
                 coroutineScope.launch {
-                  val recentlyPlayedVideos = RecentlyPlayedOps.getRecentlyPlayed(limit = 1)
-                  val lastPlayed = recentlyPlayedVideos.firstOrNull()
-                  val targetVideo =
-                    if (lastPlayed != null) {
-                      filteredVideosWithInfo.firstOrNull { it.video.path == lastPlayed.filePath }?.video
-                    } else {
-                      null
-                    }
-
-                  playFromMediaLibrary(targetVideo ?: filteredVideosWithInfo.first().video)
+                  val videos = filteredVideosWithInfo.map { it.video }
+                  playFromMediaLibrary(RecentlyPlayedOps.lastPlayedOf(videos) ?: videos.first())
                 }
               },
               icon = { Icon(Icons.RoundedFilled.PlayArrow, contentDescription = null) },

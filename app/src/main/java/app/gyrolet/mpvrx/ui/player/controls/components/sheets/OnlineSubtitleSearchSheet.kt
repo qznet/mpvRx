@@ -9,7 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.player.controls.components.sheets
 
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AiPreferences
 import app.gyrolet.mpvrx.presentation.components.AppComboBoxChip
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import app.gyrolet.mpvrx.presentation.components.PlayerSheet
 import app.gyrolet.mpvrx.presentation.components.RemoteImage
 import app.gyrolet.mpvrx.repository.ai.AiService

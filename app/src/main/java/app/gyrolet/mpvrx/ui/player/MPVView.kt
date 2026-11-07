@@ -10,10 +10,14 @@
 package app.gyrolet.mpvrx.ui.player
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
 import android.os.Environment
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.util.Log
+import android.view.Display
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.Surface
@@ -26,6 +30,9 @@ import androidx.core.view.WindowInsetsCompat
 import app.gyrolet.mpvrx.BuildConfig
 import app.gyrolet.mpvrx.domain.anime4k.Anime4KManager
 import app.gyrolet.mpvrx.domain.hdr.HdrToysManager
+import app.gyrolet.mpvrx.domain.motion.MotionAvailability
+import app.gyrolet.mpvrx.domain.motion.MotionConfig
+import app.gyrolet.mpvrx.domain.motion.MotionInterpolation
 import app.gyrolet.mpvrx.preferences.AdvancedPreferences
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.AudioPreferences
@@ -84,7 +91,9 @@ class MPVView(
   var isExiting = false
   private var lastRequestedFrameRate = Float.NaN
   var forceOpenGlFallback = false
-  private var renderCallbacksEnabled = true
+  // Android may create the Surface while the core is still initializing on IO. Do not let its
+  // main-thread callbacks wait on the native lock; attachSessionSurface enables them afterwards.
+  private var renderCallbacksEnabled = false
   private var surfaceRecovery: Runnable? = null
   private var pausedFrameRedraw: Runnable? = null
   private val surfaceReadiness = MutableStateFlow(false)
@@ -115,13 +124,10 @@ class MPVView(
     )
   }
 
-  /**
-   * Suspends the media loader until this view's Surface is attached, like mpv-android's
-   * `playFile()` deferring `loadfile` to `surfaceCreated`. The bind is re-attempted so a failed or
-   * superseded attachment is recovered. Returns false only when binding is disabled or exiting.
-   */
+  /** A slow Surface must not prevent the media load and its watchdog from starting. */
   internal suspend fun awaitSurfaceReady(): Boolean {
-    while (true) {
+    val deadline = SystemClock.elapsedRealtime() + SURFACE_READY_TIMEOUT_MS
+    while (SystemClock.elapsedRealtime() < deadline) {
       val attached =
         withContext(Dispatchers.Main.immediate) {
           when {
@@ -135,6 +141,7 @@ class MPVView(
       if (attached != null) return attached
       withTimeoutOrNull(SURFACE_RETRY_MS) { surfaceReadiness.first { it } }
     }
+    return false
   }
 
   /**
@@ -177,6 +184,7 @@ class MPVView(
   internal fun initializeCoreSession(
     configDir: String,
     cacheDir: String,
+    ownerIsActive: () -> Boolean = { true },
   ): Result<Boolean> {
     // The libmpv core is process-wide, so returning to the player can reuse a core created with
     // older renderer preferences. Keep fallbacks stable for the lifetime of that preference
@@ -203,6 +211,7 @@ class MPVView(
       postInitOptions = ::postInitOptions,
       observeProperties = ::observeProperties,
       userScriptsKey = scriptsKey,
+      ownerIsActive = ownerIsActive,
     )
   }
 
@@ -324,6 +333,7 @@ class MPVView(
     val preciseSeek: Boolean,
     val subtitleOptionValues: List<Pair<String, String>>,
     val audioOptionValues: List<Pair<String, String>>,
+    val motionInterpolation: MotionConfig,
   )
 
   @Volatile
@@ -347,6 +357,7 @@ class MPVView(
   }
 
   private fun computeInitInputs(): InitInputs {
+    MotionInterpolation.ensureHdrEnabled(decoderPreferences)
     val screenshotDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
     screenshotDirectory.mkdirs()
     return InitInputs(
@@ -373,6 +384,7 @@ class MPVView(
       preciseSeek = playerPreferences.usePreciseSeeking.get(),
       subtitleOptionValues = computeSubtitleOptionValues(),
       audioOptionValues = computeAudioOptionValues(),
+      motionInterpolation = MotionInterpolation.config(decoderPreferences),
     )
   }
 
@@ -467,7 +479,11 @@ class MPVView(
           reason = "MediaCodec Embed (zero-copy) video output requested",
         )
       } else {
-        selectRenderBackend(inputs.anime4kEnabled, inputs.gpuNextEnabled, inputs.vulkanCapable)
+        selectRenderBackend(
+          inputs.anime4kEnabled,
+          inputs.gpuNextEnabled,
+          inputs.vulkanCapable && !forceOpenGlFallback,
+        )
       }
     val useVulkan = backend.gpuApi == "vulkan"
     val hwdecMode = preferredHwdecMode(useVulkan)
@@ -543,6 +559,26 @@ class MPVView(
     // This prevents timing jitter when the display refresh rate doesn't perfectly
     // match the video frame rate (e.g., 24fps content on 60Hz display).
     PlaybackSession.setOptionString("video-sync", "audio")
+
+    // FongMi's GPU motion core renders through gpu-next on Vulkan and needs display sync; on every
+    // other renderer playback keeps the defaults above. Changes after startup come from
+    // MotionInterpolationController.
+    val motion = inputs.motionInterpolation
+    val motionStarts =
+      motion.enabled && MotionInterpolation.barrier(context, decoderPreferences) == MotionAvailability.READY &&
+        backend.vo == "gpu-next" && useVulkan
+    // A new core starts without mpvRx's motion settings; mpv.conf may still enable it.
+    MotionInterpolation.appApplied = motionStarts && !MpvConfigOverridePolicy.isOwnedByMpvConf(MotionInterpolation.OPTION)
+    if (motionStarts) {
+      MotionInterpolation.displayFpsOverride(context)?.let {
+        PlaybackSession.setOptionString("display-fps-override", it)
+      }
+      PlaybackSession.setOptionString("video-sync", "display-resample")
+      PlaybackSession.setOptionString(
+        MotionInterpolation.OPTION,
+        MotionInterpolation.mpvTargetFps(motion, context).toString(),
+      )
+    }
 
     // These are native property/command operations (shader list changes), not mpv options.
     // Running them before MPVLib.init() fails with "mpv_command: core not initialized".
@@ -627,7 +663,10 @@ class MPVView(
     val resolvedInsets =
       insets ?: androidx.core.view.ViewCompat
         .getRootWindowInsets(this)
-    val cutoutInsets = resolvedInsets?.getInsets(WindowInsetsCompat.Type.displayCutout())
+    val cutoutInsets =
+      if (playerPreferences.safeAreaWindow.get()) {
+        resolvedInsets?.getInsets(WindowInsetsCompat.Type.displayCutout())
+      } else null
     val horizontalMargin =
       maxOf(cutoutInsets?.left ?: 0, cutoutInsets?.right ?: 0).coerceAtLeast(DEFAULT_OSD_SAFE_MARGIN)
     val verticalMargin = (cutoutInsets?.top ?: 0).coerceAtLeast(DEFAULT_OSD_SAFE_MARGIN)
@@ -888,6 +927,7 @@ class MPVView(
   private companion object {
     const val DEFAULT_OSD_SAFE_MARGIN = 16
     const val SURFACE_RETRY_MS = 250L
+    const val SURFACE_READY_TIMEOUT_MS = 5_000L
   }
 
   @Suppress("ReturnCount", "DEPRECATION")
@@ -931,20 +971,20 @@ class MPVView(
     width: Int,
     height: Int,
   ) {
+    if (!renderCallbacksEnabled || isExiting) return
     if (!PlaybackSession.resizeSurface(width, height, owner = this)) ensureSurfaceAttached()
     applyFrameRate()
     redrawPausedFrame()
   }
 
   /**
-   * A paused mpv does not render onto a new or resized Surface by itself, leaving a black or
-   * stretched buffer. A zero-distance exact seek re-renders the current frame (as REX Player does).
+   * Repaint the retained video output onto a replacement presentation window while paused.
    */
   private fun redrawPausedFrame() {
     if (isExiting || !isSurfaceReady) return
     val state = PlaybackSession.state.value
     if (!state.paused || state.phase != PlaybackPhase.READY || !PlaybackSession.isSurfaceAttachedTo(this)) return
-    PlaybackSession.command("seek", "0", "relative+exact")
+    PlaybackSession.redrawVideoFrame()
   }
 
   override fun onRenderSurfaceAvailable(surface: Surface, width: Int, height: Int) {
@@ -1011,25 +1051,39 @@ class MPVView(
     surfaceAttachmentGeneration++
     isSurfaceReady = false
     lastRequestedFrameRate = Float.NaN
-    PlaybackSession.unbindSurface(this)
+    if (renderCallbacksEnabled) PlaybackSession.unbindSurface(this)
   }
 
   /**
    * Applies the content FPS once per effective value. Both Surface callbacks and mpv's
    * container-fps observer converge here, avoiding duplicate vendor display-mode requests.
+   * While motion interpolation runs, the display follows its target instead.
    */
   internal fun updateFrameRate(fps: Double? = null) {
     if (
       android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R || isExiting ||
       !surfaceBindingEnabled || !isSurfaceReady || !PlaybackSession.state.value.surfaceAttached
     ) return
-    val resolved = fps ?: PlaybackSession.getPropertyDouble("container-fps") ?: return
-    if (!resolved.isFinite() || resolved <= 0.0 || resolved > 1000.0) return
+    val content =
+      (fps ?: PlaybackSession.getPropertyDouble("container-fps"))
+        ?.takeIf { it.isFinite() && it > 0.0 && it <= 1000.0 }
+    val requested =
+      if (isMotionInterpolationRunning()) {
+        val config = MotionInterpolation.config(decoderPreferences)
+        when {
+          // A target at or below the video's rate generates nothing; keep the video's own rate.
+          content != null && MotionInterpolation.mpvTargetFps(config, context) <= content * 1.01 ->
+            content.toFloat()
+          // 0 withdraws the content-rate vote, so the display is not locked to the video's rate.
+          else -> MotionInterpolation.surfaceFrameRate(config, context) ?: 0f
+        }
+      } else {
+        content?.toFloat() ?: return
+      }
 
     val surface = renderSurface ?: return
     if (!surface.isValid) return
 
-    val requested = resolved.toFloat()
     if (lastRequestedFrameRate.isFinite() && abs(lastRequestedFrameRate - requested) < 0.01f) return
 
     try {
@@ -1045,6 +1099,38 @@ class MPVView(
   }
 
   private fun applyFrameRate() = updateFrameRate()
+
+  private fun isMotionInterpolationRunning(): Boolean =
+    MotionInterpolation.isBuildSupported && (PlaybackSession.getPropertyInt(MotionInterpolation.OPTION) ?: 0) > 0
+
+  /** mpv cannot query Android's refresh rate; keep display sync in step with mode switches. */
+  private val displayListener =
+    object : DisplayManager.DisplayListener {
+      override fun onDisplayAdded(displayId: Int) = Unit
+
+      override fun onDisplayRemoved(displayId: Int) = Unit
+
+      override fun onDisplayChanged(displayId: Int) {
+        if (displayId != Display.DEFAULT_DISPLAY || isExiting || !isMotionInterpolationRunning()) return
+        MotionInterpolation.displayFpsOverride(context)?.let {
+          PlaybackSession.setOptionString("display-fps-override", it)
+        }
+      }
+    }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (MotionInterpolation.isBuildSupported) {
+      context.getSystemService(DisplayManager::class.java)?.registerDisplayListener(displayListener, handler)
+    }
+  }
+
+  override fun onDetachedFromWindow() {
+    if (MotionInterpolation.isBuildSupported) {
+      context.getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displayListener)
+    }
+    super.onDetachedFromWindow()
+  }
 
   private val observedProps =
     mapOf(
@@ -1108,7 +1194,10 @@ class MPVView(
     val subDelay = (subtitlesPreferences.defaultSubDelay.get() / 1000.0).toString()
     val subSpeed = subtitlesPreferences.defaultSubSpeed.get().toString()
 
-    val scaleByWindow = if (subtitlesPreferences.scaleByWindow.get()) "yes" else "no"
+    val windowOptions = subtitleWindowOptions(
+      scaleByWindow = subtitlesPreferences.scaleByWindow.get(),
+      isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT,
+    )
     val blendMode = subtitleBlendMode()
 
     return buildList {
@@ -1154,8 +1243,7 @@ class MPVView(
       add("sub-shadow-offset" to subtitlesPreferences.shadowOffset.get().toString())
       add("sub-scale" to subtitlesPreferences.subScale.get().toString())
       add("sub-pos" to clampSubtitlePosition(subtitlesPreferences.subPos.get()).toString())
-      add("sub-scale-by-window" to scaleByWindow)
-      add("sub-use-margins" to scaleByWindow)
+      addAll(windowOptions)
       // Secondary has its own position/scale only.
       add("secondary-sub-scale" to subtitlesPreferences.secondarySubScale.get().toString())
       add(
@@ -1367,3 +1455,5 @@ class MPVView(
     )
   }
 }
+
+

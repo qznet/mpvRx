@@ -158,14 +158,19 @@ enum class MpvConfigOverride(
   PLAYBACK_TIMING(
     preferenceKey = "playback_timing",
     optionNames =
-      setOf(
-        "speed",
-        "audio-pitch-correction",
-        "hr-seek",
-        "hr-seek-framedrop",
-        "video-sync",
-        "framedrop",
-      ),
+      buildSet {
+        add("speed")
+        add("audio-pitch-correction")
+        add("hr-seek")
+        add("hr-seek-framedrop")
+        add("video-sync")
+        add("framedrop")
+        // Only FongMi's mpv has the motion core; display sync for it needs the refresh rate.
+        if (app.gyrolet.mpvrx.BuildConfig.MPV_SUPPORTS_MOTION_INTERPOLATION) {
+          add("motion-interpolation")
+          add("display-fps-override")
+        }
+      },
   ),
   NETWORK_BUFFERING(
     preferenceKey = "network_buffering",
@@ -201,8 +206,10 @@ enum class MpvConfigOverride(
   ;
 
   companion object {
-    private val byPreferenceKey = entries.associateBy(MpvConfigOverride::preferenceKey)
-    val allOptionNames: Set<String> = entries.flatMapTo(linkedSetOf()) { it.optionNames }
+    val availableGroups: List<MpvConfigOverride> =
+      entries.filter { it != YTDLP || app.gyrolet.mpvrx.BuildConfig.ENABLE_YTDLP }
+    private val byPreferenceKey = availableGroups.associateBy(MpvConfigOverride::preferenceKey)
+    val allOptionNames: Set<String> = availableGroups.flatMapTo(linkedSetOf()) { it.optionNames }
 
     fun resolveOptionNames(storedValues: Set<String>): Set<String> =
       storedValues.flatMapTo(linkedSetOf()) { value ->
@@ -210,7 +217,7 @@ enum class MpvConfigOverride(
       }
 
     fun groupsContaining(optionNames: Set<String>): Set<MpvConfigOverride> =
-      entries.filterTo(linkedSetOf()) { group -> group.optionNames.any(optionNames::contains) }
+      availableGroups.filterTo(linkedSetOf()) { group -> group.optionNames.any(optionNames::contains) }
   }
 }
 

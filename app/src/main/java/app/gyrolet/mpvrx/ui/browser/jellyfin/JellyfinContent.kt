@@ -97,10 +97,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
@@ -109,7 +107,6 @@ import app.gyrolet.mpvrx.domain.jellyfin.JellyfinSearchCategory
 import app.gyrolet.mpvrx.domain.jellyfin.JellyfinServer
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.MediaServerPreferences
-import app.gyrolet.mpvrx.preferences.MusicSourceProvider
 import app.gyrolet.mpvrx.preferences.BrowserPreferences
 import app.gyrolet.mpvrx.preferences.MediaLayoutMode
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -876,10 +873,10 @@ fun JellyfinContent(
                     state = gridState,
                     columns = GridCells.Adaptive(minSize = 130.dp),
                     modifier = Modifier.fillMaxSize().tvContentFocus(),
-                    // Cards carry their own padding, so the grid edge plus that padding lands on the gutter.
+                    // Cards are padding-less now, so the grid edge lands directly on the gutter.
                     contentPadding = PaddingValues(
-                      start = gutter - JellyfinSpacing.CardPadding,
-                      end = gutter - JellyfinSpacing.CardPadding,
+                      start = gutter,
+                      end = gutter,
                       top = topBarHeight + 8.dp,
                       bottom = navigationBarHeight + 96.dp,
                     ),

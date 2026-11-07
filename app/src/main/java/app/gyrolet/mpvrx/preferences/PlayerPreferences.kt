@@ -103,10 +103,11 @@ class PlayerPreferences(
   val persistentStatusPreferFinishTime = preferenceStore.getBoolean("persistent_status_prefer_finish_time", true)
   val persistentStatusShowSpeed = preferenceStore.getBoolean("persistent_status_show_speed", true)
   val persistentStatusMicroBattery = preferenceStore.getBoolean("persistent_status_micro_battery", true)
+  val persistentStatusProgressLine = preferenceStore.getBoolean("persistent_status_progress_line", false)
   val showSystemStatusBar = preferenceStore.getBoolean("show_system_status_bar")
   val showSystemNavigationBar = preferenceStore.getBoolean("show_system_navigation_bar")
   val safeAreaWindow = preferenceStore.getBoolean("safe_area_window", false)
-  val reduceMotion = preferenceStore.getBoolean("reduce_motion", true)
+  val reduceMotion = preferenceStore.getBoolean("reduce_motion", false)
   val playerTimeToDisappear = preferenceStore.getInt("player_time_to_disappear", 4000)
   val clockFormat = preferenceStore.getEnum("player_clock_format", PlayerClockFormat.SYSTEM)
 

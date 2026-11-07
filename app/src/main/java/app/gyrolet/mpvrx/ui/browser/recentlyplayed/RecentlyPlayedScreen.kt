@@ -10,7 +10,7 @@
 package app.gyrolet.mpvrx.ui.browser.recentlyplayed
 
 import android.content.Intent
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import app.gyrolet.mpvrx.ui.utils.NavigationBackHandler as BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,7 +64,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -703,6 +702,7 @@ private fun RecentItemsContent(
   val showResolutionChip by viewPreferences.showResolutionChip.collectAsState()
   val showFramerateInResolution by viewPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by viewPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by viewPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by viewPreferences.showDateChip.collectAsState()
   val showCodecSupportIndicator by viewPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
@@ -760,6 +760,7 @@ private fun RecentItemsContent(
       showFramerateInResolution,
       showCodecSupportIndicator,
       showProgressBar,
+      grayscaleWatchedThumbnails,
       showDateChip,
       showUnplayedOldVideoLabel,
       unplayedOldVideoDays,
@@ -779,6 +780,7 @@ private fun RecentItemsContent(
         showFramerateInResolution = showFramerateInResolution,
         showCodecSupportIndicator = showCodecSupportIndicator,
         showProgressBar = showProgressBar,
+        grayscaleWatchedThumbnails = grayscaleWatchedThumbnails,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
         unplayedOldVideoDays = unplayedOldVideoDays,

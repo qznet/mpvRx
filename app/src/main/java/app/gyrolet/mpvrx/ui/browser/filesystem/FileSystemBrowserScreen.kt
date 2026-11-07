@@ -72,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
@@ -122,6 +121,7 @@ import app.gyrolet.mpvrx.ui.browser.states.EmptyState
 import app.gyrolet.mpvrx.ui.browser.states.LoadingState
 import app.gyrolet.mpvrx.ui.browser.states.PermissionDeniedState
 import app.gyrolet.mpvrx.ui.components.InlineSearchBar
+import app.gyrolet.mpvrx.ui.securefolder.SecureFolderGateScreen
 import app.gyrolet.mpvrx.ui.icons.Icon
 import app.gyrolet.mpvrx.ui.icons.Icons
 import app.gyrolet.mpvrx.ui.theme.AppMotion
@@ -624,6 +624,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
             onSettingsClick = {
               backstack.navigateTo(app.gyrolet.mpvrx.ui.preferences.PreferencesScreen)
             },
+            onTitleDoubleTap = { backstack.navigateTo(SecureFolderGateScreen) },
+            onTitleLongPress = { backstack.navigateTo(SecureFolderGateScreen) },
             isSingleSelection = selectionManager.isSingleSelection,
             onInfoClick = showSelectionInfo,
             onShareClick = {
@@ -651,8 +653,8 @@ fun FileSystemBrowserScreen(path: String? = null) {
                     foldersPreferences.addBlacklistedFolders(paths, app.gyrolet.mpvrx.preferences.BlacklistScope.VIDEO_ONLY)
                     selectionManager.clear()
                     viewModel.refresh()
-                    android.widget.Toast
-                      .makeText(context, foldersBlacklistedMessage, android.widget.Toast.LENGTH_SHORT)
+                    app.gyrolet.mpvrx.ui.components.AppToast
+                      .makeText(context, foldersBlacklistedMessage, app.gyrolet.mpvrx.ui.components.AppToast.LENGTH_SHORT)
                       .show()
                   }
                 }
@@ -762,11 +764,7 @@ fun FileSystemBrowserScreen(path: String? = null) {
                 onClick = {
                   isFabExpanded.value = false
                   coroutineScope.launch {
-                    val recentlyPlayedVideos =
-                      app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps.getRecentlyPlayed(
-                        limit = 1,
-                      )
-                    val lastPlayed = recentlyPlayedVideos.firstOrNull()
+                    val lastPlayed = app.gyrolet.mpvrx.utils.history.RecentlyPlayedOps.getLastPlayedEntity()
                     if (lastPlayed != null) {
                       MediaUtils.playFile(lastPlayed.filePath, context, "recently_played_button")
                     }
@@ -1423,6 +1421,7 @@ private fun FileSystemBrowserContent(
   val showResolutionChip by browserPreferences.showResolutionChip.collectAsState()
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by browserPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
   val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val showUnplayedOldVideoLabel by appearancePreferences.showUnplayedOldVideoLabel.collectAsState()
@@ -1442,6 +1441,7 @@ private fun FileSystemBrowserContent(
       showResolutionChip,
       showFramerateInResolution,
       showProgressBar,
+      grayscaleWatchedThumbnails,
       showDateChip,
       showUnplayedOldVideoLabel,
       unplayedOldVideoDays,
@@ -1457,12 +1457,13 @@ private fun FileSystemBrowserContent(
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
-        showThumbnails = showVideoThumbnails && !archiveMode,
+        showThumbnails = showVideoThumbnails,
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip && !archiveMode,
         showFramerateInResolution = showFramerateInResolution && !archiveMode,
         showCodecSupportIndicator = showCodecSupportIndicator && !archiveMode,
-        showProgressBar = showProgressBar && !archiveMode,
+        showProgressBar = showProgressBar,
+        grayscaleWatchedThumbnails = grayscaleWatchedThumbnails,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
         unplayedOldVideoDays = unplayedOldVideoDays,
@@ -1476,12 +1477,12 @@ private fun FileSystemBrowserContent(
       )
     }
 
-  // ZIP entries carry no probed metadata or thumbnails; suppress fields that would stay empty.
+  // ZIP entries support thumbnails, but folder totals have no probed duration.
   val baseFolderCardUiConfig = rememberFolderCardUiConfig()
   val folderCardUiConfig =
     remember(baseFolderCardUiConfig, archiveMode) {
       if (archiveMode) {
-        baseFolderCardUiConfig.copy(showTotalDurationChip = false, showFolderThumbnails = false)
+        baseFolderCardUiConfig.copy(showTotalDurationChip = false)
       } else {
         baseFolderCardUiConfig
       }
@@ -1669,7 +1670,7 @@ private fun FileSystemBrowserContent(
                     customIcon = if (ZipArchiveMedia.isArchiveRoot(folder.path)) Icons.RoundedFilled.FolderZip else null,
                     newVideoCount = folder.newCount,
                     isGridMode = true,
-                    allowThumbnailGeneration = false,
+                    allowThumbnailGeneration = archiveFolder && isOpenedFolder,
                   )
                 }
 
@@ -1706,8 +1707,7 @@ private fun FileSystemBrowserContent(
                       overrideShowSizeChip = null,
                       overrideShowResolutionChip = null,
                       useFolderNameStyle = false,
-                      allowThumbnailGeneration = !archiveEntry && isOpenedFolder,
-                      allowThumbnailLoading = !archiveEntry,
+                      allowThumbnailGeneration = isOpenedFolder,
                       uiConfig = videoCardUiConfig,
                   )
                 }
@@ -1796,7 +1796,7 @@ private fun FileSystemBrowserContent(
                     },
                   newVideoCount = folder.newCount,
                   isGridMode = false,
-                  allowThumbnailGeneration = false,
+                  allowThumbnailGeneration = archiveFolder && isOpenedFolder,
                   customIcon = if (ZipArchiveMedia.isArchiveRoot(folder.path)) Icons.RoundedFilled.FolderZip else null,
                   onSwipeAction =
                     swipeActions.folder.takeUnless { archiveFolder || selectionManager.isInSelectionMode || isInSelectionMode },
@@ -1837,8 +1837,7 @@ private fun FileSystemBrowserContent(
                     overrideShowSizeChip = null,
                     overrideShowResolutionChip = null,
                     useFolderNameStyle = false,
-                    allowThumbnailGeneration = !archiveEntry && isOpenedFolder,
-                    allowThumbnailLoading = !archiveEntry,
+                    allowThumbnailGeneration = isOpenedFolder,
                     uiConfig = videoCardUiConfig,
                     thumbnailWidthPx = if (videoFile.video.isAudio) audioCoverArtSizePx else null,
                     thumbnailHeightPx = if (videoFile.video.isAudio) audioCoverArtSizePx else null,
@@ -1909,6 +1908,7 @@ private fun FileSystemSearchContent(
   val showResolutionChip by browserPreferences.showResolutionChip.collectAsState()
   val showFramerateInResolution by browserPreferences.showFramerateInResolution.collectAsState()
   val showProgressBar by browserPreferences.showProgressBar.collectAsState()
+  val grayscaleWatchedThumbnails by browserPreferences.grayscaleWatchedThumbnails.collectAsState()
   val showDateChip by browserPreferences.showDateChip.collectAsState()
   val showCodecSupportIndicator by browserPreferences.showCodecSupportIndicator.collectAsState()
   val unlimitedNameLines by appearancePreferences.unlimitedNameLines.collectAsState()
@@ -1929,6 +1929,7 @@ private fun FileSystemSearchContent(
       showResolutionChip,
       showFramerateInResolution,
       showProgressBar,
+      grayscaleWatchedThumbnails,
       showDateChip,
       showUnplayedOldVideoLabel,
       unplayedOldVideoDays,
@@ -1944,12 +1945,13 @@ private fun FileSystemSearchContent(
     ) {
       VideoCardUiConfig(
         unlimitedNameLines = unlimitedNameLines,
-        showThumbnails = showVideoThumbnails && !archiveMode,
+        showThumbnails = showVideoThumbnails,
         showSizeChip = showSizeChip,
         showResolutionChip = showResolutionChip && !archiveMode,
         showFramerateInResolution = showFramerateInResolution && !archiveMode,
         showCodecSupportIndicator = showCodecSupportIndicator && !archiveMode,
-        showProgressBar = showProgressBar && !archiveMode,
+        showProgressBar = showProgressBar,
+        grayscaleWatchedThumbnails = grayscaleWatchedThumbnails,
         showDateChip = showDateChip,
         showUnplayedOldVideoLabel = showUnplayedOldVideoLabel,
         unplayedOldVideoDays = unplayedOldVideoDays,
@@ -1963,12 +1965,12 @@ private fun FileSystemSearchContent(
       )
     }
 
-  // ZIP entries carry no probed metadata or thumbnails; suppress fields that would stay empty.
+  // ZIP entries support thumbnails, but folder totals have no probed duration.
   val baseFolderCardUiConfig = rememberFolderCardUiConfig()
   val folderCardUiConfig =
     remember(baseFolderCardUiConfig, archiveMode) {
       if (archiveMode) {
-        baseFolderCardUiConfig.copy(showTotalDurationChip = false, showFolderThumbnails = false)
+        baseFolderCardUiConfig.copy(showTotalDurationChip = false)
       } else {
         baseFolderCardUiConfig
       }
@@ -2135,10 +2137,11 @@ private fun FileSystemSearchContent(
                   contentType = { "video_item" },
                   span = { GridItemSpan(spansInfo.videoSpan) },
                 ) { videoFile ->
-                  val archiveEntry = ZipArchiveMedia.isPlaybackUri(videoFile.video.uri.toString())
                   VideoCard(
                     video = videoFile.video,
-                    progressPercentage = videoFilesWithPlayback[videoFile.video.id],
+                    progressPercentage =
+                      videoFilesWithPlayback[videoFile.video.id]
+                        ?: swipePlaybackInfo[videoFile.video.path]?.progressPercentage,
                     isRecentlyPlayed = false,
                     isSelected = false,
                     onClick = { onVideoClick(videoFile.video) },
@@ -2151,8 +2154,6 @@ private fun FileSystemSearchContent(
                     overrideShowSizeChip = null,
                     overrideShowResolutionChip = null,
                     useFolderNameStyle = false,
-                    allowThumbnailGeneration = !archiveEntry,
-                    allowThumbnailLoading = !archiveEntry,
                     uiConfig = videoCardUiConfig,
                   )
                 }
@@ -2227,7 +2228,9 @@ private fun FileSystemSearchContent(
                 val archiveEntry = ZipArchiveMedia.isPlaybackUri(videoFile.video.uri.toString())
                 VideoCard(
                   video = videoFile.video,
-                  progressPercentage = videoFilesWithPlayback[videoFile.video.id],
+                  progressPercentage =
+                    videoFilesWithPlayback[videoFile.video.id]
+                      ?: swipePlaybackInfo[videoFile.video.path]?.progressPercentage,
                   isRecentlyPlayed = false,
                   isSelected = false,
                   onClick = { onVideoClick(videoFile.video) },
@@ -2241,8 +2244,6 @@ private fun FileSystemSearchContent(
                   overrideShowSizeChip = null,
                   overrideShowResolutionChip = null,
                   useFolderNameStyle = false,
-                  allowThumbnailGeneration = !archiveEntry,
-                  allowThumbnailLoading = !archiveEntry,
                   uiConfig = videoCardUiConfig,
                   thumbnailWidthPx = if (videoFile.video.isAudio) audioCoverArtSizePx else null,
                   thumbnailHeightPx = if (videoFile.video.isAudio) audioCoverArtSizePx else null,
@@ -2268,4 +2269,3 @@ private fun FileSystemSearchContent(
     }
   }
 }
-

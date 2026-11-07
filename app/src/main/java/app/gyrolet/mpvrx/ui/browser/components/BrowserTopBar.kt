@@ -9,6 +9,7 @@
 
 package app.gyrolet.mpvrx.ui.browser.components
 
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -24,6 +25,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -41,11 +43,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import app.gyrolet.mpvrx.ui.background.rememberSeasonalGreeting
+import androidx.compose.runtime.DisposableEffect
+import app.gyrolet.mpvrx.ui.background.SeasonalEvent
+import app.gyrolet.mpvrx.ui.background.rememberSeasonalEvent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,8 +64,11 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.BaselineShift
@@ -69,6 +77,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.sp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
@@ -87,6 +96,31 @@ import org.koin.compose.koinInject
 
 private fun Modifier.browserTopBarFocus(enabled: Boolean = true): Modifier =
   tvFocusHighlight(CircleShape, enabled = enabled, focusedScale = 1.06f)
+
+@Composable
+private fun SeasonalTitleIcon(event: SeasonalEvent, modifier: Modifier = Modifier) {
+  val context = LocalContext.current
+  val greeting = stringResource(event.greetingRes)
+  val toast = remember(context) { Toast.makeText(context.applicationContext, "", Toast.LENGTH_SHORT) }
+  DisposableEffect(toast) {
+    onDispose { toast.cancel() }
+  }
+  IconButton(
+    onClick = {
+      toast.setText(greeting)
+      toast.withIcon(event.icon)
+      toast.show()
+    },
+    modifier = modifier.size(32.dp).browserTopBarFocus().semantics { contentDescription = greeting },
+  ) {
+    Text(
+      text = event.icon,
+      fontSize = 24.sp,
+      lineHeight = 28.sp,
+      modifier = Modifier.clearAndSetSemantics { },
+    )
+  }
+}
 
 /**
  * Top-bar action matching the built-in [BrowserTopBar] actions (touch target, spacing, 24dp icon,
@@ -262,7 +296,7 @@ private fun NormalTopBar(
   val darkTheme = isSystemInDarkTheme()
   val themeTransition = LocalThemeTransitionState.current
   val coroutineScope = rememberCoroutineScope()
-  val seasonalGreeting = rememberSeasonalGreeting()
+  val seasonalEvent = rememberSeasonalEvent()
 
   // Track title bounds for animation position
   val titleBounds = remember { mutableStateOf(Rect.Zero) }
@@ -290,6 +324,25 @@ private fun NormalTopBar(
         }
     }
   }
+
+  val currentOnTitleLongPress by rememberUpdatedState(onTitleLongPress)
+  val currentOnTitleDoubleTap by rememberUpdatedState(onTitleDoubleTap)
+  val currentOnTitleTap by rememberUpdatedState(
+    newValue = { localOffset: Offset ->
+      if (themeTransition?.isAnimating != true) {
+        val windowOffset =
+          Offset(
+            titleBounds.value.left + localOffset.x,
+            titleBounds.value.top + localOffset.y,
+          )
+        themeTransition?.startTransition(windowOffset)
+        coroutineScope.launch {
+          delay(50)
+          toggleDarkMode()
+        }
+      }
+    },
+  )
 
   TopAppBar(
     colors =
@@ -320,34 +373,19 @@ private fun NormalTopBar(
           Modifier
             .onGloballyPositioned { coordinates ->
               titleBounds.value = coordinates.boundsInWindow()
-            }.pointerInput(onTitleLongPress, onTitleDoubleTap, darkMode, darkTheme, themeTransition) {
+            }.pointerInput(onTitleLongPress != null, onTitleDoubleTap != null) {
+              // Keep an in-progress hold or double tap alive across callback/state updates.
               detectTapGestures(
-                onTap = { localOffset ->
-                  // Don't allow theme change if animation is in progress
-                  if (themeTransition?.isAnimating == true) return@detectTapGestures
-
-                  // Calculate window position for circular reveal
-                  val windowOffset =
-                    Offset(
-                      titleBounds.value.left + localOffset.x,
-                      titleBounds.value.top + localOffset.y,
-                    )
-                  themeTransition?.startTransition(windowOffset)
-                  // Delay theme change to allow overlay to display first
-                  coroutineScope.launch {
-                    delay(50)
-                    toggleDarkMode()
-                  }
-                },
+                onTap = { currentOnTitleTap(it) },
                 onDoubleTap =
                   if (onTitleDoubleTap != null) {
-                    { onTitleDoubleTap() }
+                    { currentOnTitleDoubleTap?.invoke() }
                   } else {
                     null
                   },
                 onLongPress =
                   if (onTitleLongPress != null) {
-                    { onTitleLongPress() }
+                    { currentOnTitleLongPress?.invoke() }
                   } else {
                     null
                   },
@@ -363,47 +401,53 @@ private fun NormalTopBar(
               Modifier
             },
         ) {
-          Text(
-            buildAnnotatedString {
-              append(title)
-              if (showBetaBadge) {
-                withStyle(
-                  SpanStyle(
-                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                    fontWeight = FontWeight.SemiBold,
-                    baselineShift = BaselineShift.Superscript,
-                  ),
-                ) {
-                  append(betaBadgeSuffix)
-                }
-              }
-            },
-            // Match the Profile hero title: headline styles use the app's bundled
-            // expressive Google Sans Flex variable-display cut (or the user's chosen
-            // display font), without overriding accessibility or language fallbacks.
-            style =
-              if (forceHeadlineSmall) {
-                MaterialTheme.typography.headlineSmallEmphasized.copy(fontWeight = FontWeight.ExtraBold)
-              } else {
-                MaterialTheme.typography.headlineMediumEmphasized.copy(fontWeight = FontWeight.ExtraBold)
-              },
-            color = MaterialTheme.colorScheme.primary.onWallpaper(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = titleModifier.weight(1f, fill = false),
-          )
-          if (seasonalGreeting != null && onBackClick == null) {
+          Box(
+            modifier =
+              Modifier
+                .weight(1f, fill = false)
+                .heightIn(min = 48.dp)
+                .then(titleModifier),
+            contentAlignment = Alignment.CenterStart,
+          ) {
             Text(
-              text = stringResource(seasonalGreeting),
-              style = MaterialTheme.typography.labelLarge,
-              color = MaterialTheme.colorScheme.tertiary.onWallpaper(),
+              buildAnnotatedString {
+                append(title)
+                if (showBetaBadge) {
+                  withStyle(
+                    SpanStyle(
+                      fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                      fontWeight = FontWeight.SemiBold,
+                      baselineShift = BaselineShift.Superscript,
+                    ),
+                  ) {
+                    append(betaBadgeSuffix)
+                  }
+                }
+              },
+              // Match the Profile hero title: headline styles use the app's bundled
+              // expressive Google Sans Flex variable-display cut (or the user's chosen
+              // display font), without overriding accessibility or language fallbacks.
+              style =
+                if (forceHeadlineSmall) {
+                  MaterialTheme.typography.headlineSmallEmphasized.copy(fontWeight = FontWeight.ExtraBold)
+                } else {
+                  MaterialTheme.typography.headlineMediumEmphasized.copy(fontWeight = FontWeight.ExtraBold)
+                },
+              color = MaterialTheme.colorScheme.primary.onWallpaper(),
               maxLines = 1,
               overflow = TextOverflow.Ellipsis,
-              modifier = Modifier.padding(start = 10.dp),
             )
           }
+          if (seasonalEvent != null && onBackClick == null) {
+            SeasonalTitleIcon(event = seasonalEvent, modifier = Modifier.padding(start = 4.dp))
+          }
           if (titleTrailing != null) {
-            titleTrailing()
+            Row(
+              modifier = Modifier.padding(start = 12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              titleTrailing()
+            }
           }
         }
       }

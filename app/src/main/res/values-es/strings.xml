@@ -56,10 +56,8 @@
   <string name="pref_appearance_ui_scale_restart_now">Reiniciar ahora</string>
   <string name="pref_appearance_unlimited_name_lines_title">Mostrar nombres completos</string>
   <string name="pref_appearance_unlimited_name_lines_summary">Mostrar los nombres completos de carpetas y vídeos sin recortarlos</string>
-  <string name="pref_appearance_hide_player_buttons_background_title">Ocultar el fondo de los botones del reproductor</string>
-  <string name="pref_appearance_force_dark_player_buttons_background_title">Usar siempre fondos oscuros en los botones del reproductor</string>
+  <string name="pref_appearance_force_dark_player_buttons_background_title">Fondo de botones siempre oscuro</string>
   <string name="pref_appearance_force_dark_player_buttons_background_summary">Mantener oscuros los fondos de los botones del reproductor en los temas claro, oscuro y automático</string>
-  <string name="pref_appearance_hide_player_buttons_background_summary">Ocultar el fondo de todos los botones de control del reproductor</string>
   <string name="pref_appearance_category_file_browser">Explorador de archivos</string>
   <string name="pref_appearance_category_thumbnails">Miniaturas</string>
   <string name="pref_appearance_category_navigation">Navegación</string>
@@ -157,12 +155,12 @@
   <string name="pref_player_autoplay_after_screen_unlock_title">Reproducir automáticamente al desbloquear la pantalla</string>
   <string name="pref_player_autoplay_after_screen_unlock_summary">Reanudar automáticamente el vídeo tras desbloquear si se estaba reproduciendo antes de bloquear la pantalla</string>
   <string name="pref_player_autoplay_after_screen_unlock_summary_disabled">Mantener el vídeo en pausa después de desbloquear la pantalla</string>
-  <string name="pref_player_show_buffered_range_title">Mostrar rango almacenado en búfer en la barra de búsqueda</string>
+  <string name="pref_player_show_buffered_range_title">Mostrar rango en búfer en la barra</string>
   <string name="pref_player_show_buffered_range_summary">Mostrar en la barra de búsqueda el búfer en línea por delante de la posición de reproducción.</string>
   <string name="pref_player_show_chapter_indicators_title">Mostrar indicadores de capítulos en la barra de búsqueda</string>
   <string name="pref_player_show_chapter_indicators_summary">Separar visualmente los capítulos a lo largo de la barra de búsqueda.</string>
   <!-- Gesture Preferences Hardcoded -->
-  <string name="pref_double_tap_seek_area_width_title">Ancho del área de búsqueda con doble toque</string>
+  <string name="pref_double_tap_seek_area_width_title">Ancho del área de gestos de toque</string>
   <!-- Advanced Preferences Hardcoded -->
   <string name="pref_export_settings_title">Exportar ajustes</string>
   <string name="pref_export_settings_summary">Exportar los ajustes a un archivo XML</string>
@@ -196,7 +194,7 @@
   <string name="pref_player_orientation_reverse_landscape">Horizontal invertida</string>
   <string name="pref_player_orientation_sensor_landscape">Horizontal por sensor</string>
   <string name="pref_player_save_position_on_quit">Guardar posición al salir</string>
-  <string name="pref_player_double_tap_seek_duration">Duración de búsqueda con doble toque</string>
+  <string name="pref_player_double_tap_seek_duration">Duración del salto por toque</string>
   <string name="pref_player_custom_skip_duration_title">Duración de salto personalizada</string>
   <string name="pref_player_custom_skip_duration_summary">Duración del avance con el botón de salto personalizado</string>
   <string name="pref_player_seeking_title">Búsqueda</string>
@@ -206,8 +204,6 @@
   <string name="pref_player_gestures_volume">Gestos de volumen</string>
   <string name="pref_player_gestures_pinch_to_zoom">Pellizcar para ampliar</string>
   <string name="pref_player_gestures_pinch_to_zoom_subtitles">Pellizcar para ampliar subtítulos</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe">Deslizar con dos dedos para la velocidad</string>
-  <string name="pref_player_gestures_two_finger_speed_swipe_summary">Desliza hacia arriba o hacia abajo con dos dedos para cambiar la velocidad en 0,25x, de 0,5x a 4x</string>
   <string name="pref_subtitles_secondary_pinch_zoom">Pellizcar amplía el subtítulo secundario</string>
   <string name="pref_subtitles_secondary_pinch_zoom_summary">Al pellizcar el subtítulo principal, también se escala el secundario</string>
   <string name="pref_player_gestures_swipe_subtitles_to_seek_dialog">Deslizar subtítulos para abrir el diálogo de búsqueda</string>
@@ -222,18 +218,24 @@
   <string name="pref_player_controls_show_loading_circle">Mostrar círculo de carga</string>
   <string name="pref_player_display_show_status_bar">Mostrar barra de estado del sistema con los controles</string>
   <string name="pref_gesture">Gestos</string>
-  <string name="pref_gesture_summary">Doble toque, controles multimedia</string>
-  <string name="pref_gesture_double_tap_title">Doble toque</string>
+  <string name="pref_gesture_summary">Toque simple/doble, controles multimedia</string>
+  <string name="pref_gesture_double_tap_title">Gestos de toque</string>
   <string name="pref_gesture_double_tap_none">Ninguno</string>
   <string name="pref_gesture_double_tap_seek">Buscar</string>
   <string name="pref_gesture_double_tap_play">Reproducir/Pausar</string>
   <string name="pref_gesture_double_tap_custom">Personalizado</string>
   <string name="pref_gesture_double_tap_left_title">Doble toque (izquierda)</string>
+  <string name="pref_gesture_single_tap_left_title">Un toque (izquierda)</string>
   <string name="pref_gesture_double_tap_center_title">Doble toque (centro)</string>
   <string name="pref_gesture_single_tap_center_title">Un toque (centro)</string>
   <string name="pref_gesture_double_tap_right_title">Doble toque (derecha)</string>
-  <string name="pref_gesture_use_single_tap_for_center_title">Usar un toque para el gesto central</string>
-  <string name="pref_gesture_use_single_tap_for_center_summary">Usar un solo toque en el centro para los gestos (como reproducir/pausar) en lugar de un doble toque.</string>
+  <string name="pref_gesture_single_tap_right_title">Un toque (derecha)</string>
+  <string name="pref_gesture_use_single_tap_for_left_title">Un toque a la izquierda</string>
+  <string name="pref_gesture_use_single_tap_for_center_title">Un toque en el centro</string>
+  <string name="pref_gesture_use_single_tap_for_right_title">Un toque a la derecha</string>
+  <string name="pref_gesture_use_single_tap_for_left_summary">Toca una vez en lugar de dos para ejecutar la acción de la izquierda.</string>
+  <string name="pref_gesture_use_single_tap_for_center_summary" formatted="false">Toca una vez en la zona central (30% de ancho por defecto y 30% de alto). Los demás toques centrales muestran u ocultan los controles.</string>
+  <string name="pref_gesture_use_single_tap_for_right_summary">Toca una vez en lugar de dos para ejecutar la acción de la derecha.</string>
   <string name="pref_gesture_center_vertical_subtitle_position_title">Arrastrar para mover subtítulos</string>
   <string name="pref_gesture_center_vertical_subtitle_position_summary">Mantén pulsado el centro y arrastra arriba o abajo para mover los subtítulos principales. Mantén pulsado un subtítulo para mover esa pista por separado. Los deslizamientos normales siguen abriendo la lista de reproducción.</string>
   <string name="pref_gesture_double_tap_custom_info">Puedes asignar acciones personalizadas a estos gestos en input.conf mediante los siguientes códigos de tecla:
@@ -426,9 +428,6 @@ Siguiente: NEXT</string>
   <string name="player_sheets_sub_misc_card_title">Varios</string>
   <string name="player_sheets_sub_delay_card_title">Retraso de subtítulos</string>
   <string name="player_sheets_sub_delay_card_delay">Retraso</string>
-  <string name="player_sheets_delay_quick_sync_summary">La sincronización rápida aplica un valor absoluto, así que pulsar el mismo chip dos veces mantiene el mismo valor.</string>
-  <string name="player_sheets_delay_offset_seconds">%1$+d s</string>
-  <string name="player_sheets_delay_offset_zero_seconds">0 s</string>
   <string name="player_sheets_sub_delay_card_speed">Velocidad</string>
   <string name="player_sheets_sub_delay_subtitle_voice_heard">Voz oída</string>
   <string name="player_sheets_sub_delay_subtitle_text_seen">Texto visto</string>
@@ -487,7 +486,7 @@ Siguiente: NEXT</string>
   <string name="pref_player_display_reduce_player_animation">Reducir animaciones del reproductor</string>
   <!-- Animation settings -->
   <string name="pref_player_display_hide_player_control_time">Ocultar la hora de los controles del reproductor</string>
-  <string name="show_splash_ovals_on_double_tap_to_seek">Mostrar onda al buscar con doble toque</string>
+  <string name="show_splash_ovals_on_double_tap_to_seek">Mostrar onda al saltar con un toque</string>
   <string name="show_time_on_double_tap_to_seek">Mostrar tiempo de búsqueda</string>
   <string name="player_sheets_frame_navigation_title">Navegación por fotogramas</string>
   <string name="player_sheets_frame_navigation_include_subtitles">Incluir subtítulos en la captura</string>
@@ -753,7 +752,7 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="pref_config_cache_cleared_toast">Caché de configuración borrada</string>
   <string name="pref_thumbnail_cache_confirm_title">¿Borrar caché de miniaturas?</string>
   <string name="pref_thumbnail_cache_confirm_subtitle">Esto eliminará las miniaturas almacenadas en caché tanto del almacenamiento como de la memoria.</string>
-  <string name="pref_section_logging">Registro</string>
+  <string name="pref_section_logging">Registros, diagnóstico y privacidad</string>
   <string name="pref_export_failed_toast">Error de exportación: %1$s</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -814,7 +813,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <!-- Folders Preferences                                        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <string name="pref_media_library_section">Biblioteca multimedia</string>
-  <string name="pref_hidden_folders_section">Carpetas ocultas</string>
   <string name="pref_clear_content_desc">Borrar</string>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
@@ -845,10 +843,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="pref_config_cache_size">Tamaño: %1$s</string>
   <string name="pref_thumbnail_cache_summary">Eliminar todas las miniaturas de video en caché (se regenerarán al explorar carpetas)</string>
   <string name="pref_thumbnail_cache_size">Tamaño: %1$s</string>
-  <string name="pref_clear_animated_artwork_cache_title">Borrar caché de portadas animadas</string>
-  <string name="pref_clear_animated_artwork_cache_summary">Eliminar las portadas de álbum animadas descargadas (se volverán a descargar al mostrarse)</string>
-  <string name="pref_animated_artwork_cache_size">Tamaño: %1$s</string>
-  <string name="pref_animated_artwork_cache_cleared">Caché de portadas animadas borrada</string>
   <string name="pref_fonts_cache_size">Tamaño: %1$s · %2$d fuente(s)</string>
   <string name="pref_failed_to_clear">No se pudo borrar: %1$s</string>
   <string name="pref_export_failed">Error al exportar: %1$s</string>
@@ -1049,6 +1043,9 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="player_horizontal_flip_off">Volteo horizontal desactivado</string>
   <string name="player_vertical_flip_on">Volteo vertical activado</string>
   <string name="player_vertical_flip_off">Volteo vertical desactivado</string>
+  <string name="player_hwplus_unsupported">%1$s no es compatible con el modo HW+. Cambia a decodificación HW o SW para usarlo.</string>
+  <string name="player_hwplus_use_hw">Usar HW</string>
+  <string name="player_hwplus_cpu_deband">Eliminación de bandas por CPU</string>
   <string name="btn_label_back">Flecha atrás</string>
   <string name="btn_label_title">Título del video</string>
   <string name="btn_label_bookmarks">Capítulos / Marcadores</string>
@@ -1444,8 +1441,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="ui_no_storage_location_configured">No se ha configurado una ubicación de almacenamiento</string>
   <string name="ui_script_file_not_found">No se encontró el archivo del script</string>
   <string name="ui_search_models">Buscar modelos...</string>
-  <string name="ui_portrait_playback_buttons">Botones de reproducción vertical</string>
-  <string name="ui_landscape_playback_buttons">Botones de reproducción horizontal</string>
   <string name="ui_portrait_seekbar_position">Posición de la barra de progreso en vertical</string>
   <string name="ui_landscape_seekbar_position">Posición de la barra de progreso en horizontal</string>
   <string name="pref_player_buttons_opacity">Opacidad del fondo de los botones del reproductor</string>
@@ -1507,7 +1502,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="oss_androidx_documentfile_description">Capa de abstracción para acceder al almacenamiento de documentos.</string>
   <string name="oss_androidx_media_description">API de sesión multimedia y reproducción de Android.</string>
   <string name="oss_androidx_palette_description">Extrae paletas de colores dominantes y vibrantes de las imágenes.</string>
-  <string name="oss_androidx_profile_installer_description">Precarga clases y métodos para acelerar el inicio de la aplicación.</string>
   <string name="oss_google_material_description">Componentes de Material Design y biblioteca de temas.</string>
   <string name="oss_google_cast_description">Framework de Chromecast para transmitir contenido multimedia.</string>
   <string name="oss_material_symbols_description">Conjunto de iconos Material Symbols para Compose.</string>
@@ -1636,7 +1630,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="secure_folder_move_items_subtitle">Desaparecerán de esta lista y de cualquier otro lugar de la aplicación hasta que se restauren.</string>
   <string name="secure_folder_moved_success">Se han movido %1$d archivo(s) a Carpeta segura</string>
   <string name="secure_folder_moved_partial">Se han movido %1$d, fallaron %2$d</string>
-  <string name="secure_folder_move_failed">Error al mover archivos a Carpeta segura</string>
   <string name="secure_folder_error_incorrect_pin">PIN incorrecto</string>
   <string name="secure_folder_error_pins_dont_match">Los PIN no coinciden</string>
   <string name="secure_folder_error_answer_question">Por favor, responde a la pregunta de seguridad</string>
@@ -1873,9 +1866,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="ui_yt_dlp_commit">Commit %1$s</string>
   <string name="ui_version_unavailable">Versión no disponible</string>
   <string name="ui_update_channel">Canal de actualización</string>
-  <string name="ui_stable_releases">Estable</string>
-  <string name="ui_preview_builds">Vista previa (Nightly)</string>
-  <string name="ui_preview_builds_summary">Las compilaciones de vista previa son versiones de prueba firmadas publicadas a partir de los últimos cambios de mpvRx y pueden ser inestables.</string>
   <string name="update_whats_new">Novedades</string>
   <string name="update_no_release_notes">No se proporcionaron notas de la versión.</string>
   <string name="update_ready_to_install">Listo para instalar</string>
@@ -2066,8 +2056,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="pref_appearance_custom_wallpaper_transparency">Transparencia</string>
   <string name="pref_folders_add_marker">Añadir archivo marcador</string>
   <string name="pref_folders_add_marker_title">Añadir marcador de carpeta oculta</string>
-  <string name="pref_folders_hidden_markers_empty">No hay archivos marcadores configurados. Se siguen incluyendo las carpetas cuyo nombre empieza por un punto.</string>
-  <string name="pref_folders_hidden_markers_summary">Se incluyen las carpetas que contienen estos archivos y sus subcarpetas. Las carpetas cuyo nombre empieza por un punto siempre se incluyen.</string>
   <string name="pref_folders_hidden_markers_title">Archivos marcadores</string>
   <string name="pref_folders_include_hidden_summary">Buscar vídeos en carpetas cuyo nombre empieza por un punto y en carpetas que contienen los archivos marcadores seleccionados.</string>
   <string name="pref_folders_include_hidden_title">Incluir carpetas multimedia ocultas</string>
@@ -2274,7 +2262,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="snapshot_delete_title">¿Eliminar la captura?</string>
   <string name="snapshot_delete_selected_title">¿Eliminar %1$d capturas?</string>
   <string name="snapshot_delete_message">Esto quita el registro de la aplicación. La imagen permanece en tu galería.</string>
-  <string name="snapshot_delete">Eliminar</string>
   <string name="snapshot_remove">Quitar</string>
 
   <string name="snapshot_root">Raíz</string>
@@ -2345,7 +2332,10 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
     <item quantity="one">Ajustes restaurados desde %1$s. Se omitió %2$d entrada dañada. Las descargas usarán Configuration/Downloads.</item>
     <item quantity="other">Ajustes restaurados desde %1$s. Se omitieron %2$d entradas dañadas. Las descargas usarán Configuration/Downloads.</item>
   </plurals>
-  <string name="settings_restore_reverted">Los ajustes restaurados desde %1$s provocaron un cierre inesperado, así que se revirtieron.</string>
+  <plurals name="pref_import_skipped_invalid">
+    <item quantity="one">Se omitió %1$d ajuste no válido</item>
+    <item quantity="other">Se omitieron %1$d ajustes no válidos</item>
+  </plurals>
   <string name="onboarding_configuration_restore_failed">No se pudo completar la configuración de la carpeta: %1$s</string>
   <string name="navbar_glow_title">Brillo del cristal</string>
   <string name="navbar_glow_summary">Mostrar luz del borde y brillo al tocar la barra de navegación</string>
@@ -2579,20 +2569,13 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="app_icon_create_custom_shortcut">Añadir un icono personalizado exacto a la pantalla de inicio</string>
   <string name="pref_experimental_badge">Experimental</string>
   <string name="pref_liquid_glass_experimental_note">Los efectos de cristal líquido son experimentales y pueden variar según el dispositivo.</string>
-  <string name="pref_hidden_scan_per_mode_summary">Elige si cada modo de Inicio analiza carpetas ocultas por marcadores o que comienzan con un punto. Al desactivarlo, también se omiten al explorar. El interruptor superior habilita los archivos ocultos globalmente.</string>
-  <string name="pref_hidden_scan_scoped_summary">Cada vista puede incluir u omitir carpetas que comienzan con un punto o están ocultas por marcadores, solo dentro de las carpetas autorizadas en Android. Las demás carpetas siguen siendo inaccesibles.</string>
   <string name="pref_hidden_scan_library">Biblioteca</string>
   <string name="pref_hidden_scan_tree">Árbol</string>
   <string name="pref_hidden_scan_folders">Carpetas</string>
-  <string name="pref_hidden_scan_marked">Analizar carpetas ocultas por marcadores</string>
-  <string name="pref_hidden_scan_marked_summary">Carpetas que contienen .nomedia u otro marcador de tu lista</string>
-  <string name="pref_hidden_scan_single_marker_summary">Incluir carpetas con este marcador en esta vista</string>
-  <string name="pref_hidden_scan_dot_summary">Carpetas cuyos nombres empiezan con un punto, como .Videos</string>
   <string name="ambient_cinema">Cine</string>
   <string name="ambient_echo">Eco</string>
   <string name="ambient_mirror">Espejo</string>
   <string name="ambient_ambilight">Ambilight</string>
-  <string name="ambient_fx_auto_hint">Este modo es completamente automático: los parámetros están fijados para obtener el mejor resultado visual y no se pueden ajustar.</string>
   <string name="app_icon_bg_crimson">Carmesí</string>
   <string name="app_icon_bg_rose">Rosa</string>
   <string name="app_icon_bg_peach">Melocotón</string>
@@ -2618,7 +2601,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="pref_nav_home_title">Inicio / Archivos</string>
   <string name="pref_nav_home_summary">Explorar carpetas y archivos locales (siempre disponible)</string>
   <string name="pref_nav_actions_section">Acciones de navegación</string>
-  <string name="pref_about_playback_libraries">Bibliotecas de reproducción</string>
   <string name="color_picker_field">Selector</string>
   <string name="color_picker_sliders">Controles deslizantes</string>
   <string name="color_picker_field_description">Saturación y brillo. Usa los controles deslizantes para ajustar con precisión.</string>
@@ -2628,15 +2610,12 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="app_icon_custom_background">Fondo personalizado</string>
   <string name="app_icon_custom_background_hint">Elige un color. Android utiliza el icono integrado más parecido en el cajón de aplicaciones. Puedes guardar el color exacto como icono de inicio y utilizarlo en Recientes.</string>
   <string name="app_icon_custom_logo_hint">Elige cualquier logotipo para superponerlo a tu fondo personalizado.</string>
-  <string name="app_icon_shortcut_preview">Vista previa del acceso directo de inicio</string>
   <string name="app_icon_custom_requested">Tu diseño</string>
   <string name="app_icon_custom_native_match">Icono real del iniciador</string>
   <string name="app_icon_use_wallpaper_colors">Usar los colores del fondo de pantalla</string>
-  <string name="app_icon_shortcut_apply">Añadir o actualizar acceso directo</string>
   <string name="app_icon_shortcut_requested">Solicitud enviada. Confirma en tu iniciador para añadir el acceso directo.</string>
   <string name="app_icon_shortcut_updated">Acceso directo de inicio actualizado</string>
   <string name="app_icon_shortcut_unsupported">Este iniciador no admite accesos directos en la pantalla de inicio.</string>
-  <string name="app_icon_shortcut_failed">No se pudo guardar el acceso directo. Vuelve a intentarlo.</string>
   <string name="color_picker_wheel">Rueda de colores</string>
   <string name="color_picker_brightness">Brillo</string>
     <string name="only_for_video_list">Solo para la lista de vídeos</string>
@@ -2779,6 +2758,9 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="jellyfin_details">Detalles</string>
   <string name="jellyfin_trailer">Tráiler</string>
   <string name="jellyfin_open_trailer_error">No hay ninguna aplicación disponible para abrir tráileres.</string>
+  <string name="no_app_for_action">Ninguna aplicación de este dispositivo puede abrir esto.</string>
+  <string name="tv_picker_file_exists">Ya existe un archivo con este nombre.</string>
+  <string name="tv_picker_no_access">mpvRx no puede acceder a esta ubicación.</string>
   <string name="jellyfin_libraries">Bibliotecas</string>
   <string name="jellyfin_continue_watching">Seguir viendo</string>
   <string name="jellyfin_latest_movies">Películas recientes</string>
@@ -2799,7 +2781,6 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="jellyfin_more_like_this">Similares</string>
   <string name="jellyfin_watched">Visto</string>
   <string name="jellyfin_search_hint">Buscar películas, series y episodios…</string>
-  <string name="pref_scan_filters">Filtros de escaneo</string>
   <string name="pref_filter_short_videos">Filtrar vídeos cortos</string>
   <string name="pref_filter_short_videos_summary">Ignorar vídeos más cortos que la duración seleccionada al escanear</string>
   <string name="pref_filter_small_files">Filtrar archivos pequeños</string>
@@ -2850,7 +2831,10 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <!-- Folder filters and clip export tracks -->
   <string name="clip_audio_track">Pista de audio</string>
   <string name="clip_subtitle_track">Pista de subtítulos</string>
-  <string name="clip_burn_subtitles">Incrustar subtítulos en el vídeo</string>
+  <string name="clip_include_subtitles">Incluir subtítulos en el vídeo</string>
+  <string name="clip_subtitle_read_failed">No se pueden leer los subtítulos seleccionados.</string>
+  <string name="clip_subtitle_unsupported">Este formato de subtítulos no se puede incluir en el vídeo.</string>
+  <string name="clip_subtitle_too_large">El archivo de subtítulos es demasiado grande para incluirlo en un clip.</string>
   <string name="clip_track_auto_off">Automático / Desactivado</string>
   <string name="pref_blacklist_count">%1$d carpetas en la lista negra</string>
   <string name="pref_whitelist_disabled">Lista blanca desactivada</string>
@@ -2868,4 +2852,21 @@ Reinicia la aplicación para que se apliquen todos los cambios.</string>
   <string name="clip_quick_length">Duración rápida</string>
   <string name="clip_length_seconds">%1$d s</string>
   <string name="clip_crop_reset">Usar fotograma completo</string>
+  <string name="pref_layout_seekbar_above">Barra de progreso arriba</string>
+  <string name="pref_layout_seekbar_below">Barra de progreso abajo</string>
+  <string name="player_layout_preset_title">Diseño de reproducción</string>
+  <string name="player_layout_preview_hint">Solo vista previa. Los cambios se guardan al instante.</string>
+  <string name="player_layout_shared_landscape_hint">Se aplica a todas las zonas horizontales.</string>
+  <string name="pref_ignore_audio_focus_title">Ignorar el foco de audio</string>
+  <string name="pref_ignore_audio_focus_summary">Seguir reproduciendo audio y vídeo junto con otras aplicaciones sin pausar ni bajar el volumen</string>
+  <string name="pref_audio_spatial_title">Audio espacial</string>
+  <string name="pref_audio_spatial_summary">Amplía las pistas estéreo para una experiencia más envolvente</string>
+  <string name="pref_measure_enabled_title">Compartir diagnósticos con Measure</string>
+  <string name="pref_measure_enabled_summary">Activa el envío de fallos, ANR, métricas de rendimiento y actividad de sesión a Measure. Desactivado por defecto.</string>
+  <string name="pref_measure_not_configured">Diagnósticos no disponibles: esta compilación no tiene clave de Measure.</string>
+  <string name="pref_layout_portrait_playback_position">Controles de reproducción en vertical</string>
+  <string name="pref_layout_landscape_playback_position">Controles de reproducción en horizontal</string>
+  <string name="pref_layout_playback_center">Centro de la pantalla</string>
+  <string name="pref_layout_playback_above_seekbar">Encima de la barra de progreso</string>
+  <string name="pref_layout_playback_below_seekbar">Debajo de la barra de progreso</string>
 </resources>

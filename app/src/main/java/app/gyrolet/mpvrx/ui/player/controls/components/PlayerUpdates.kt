@@ -66,7 +66,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.preferences.preference.collectAsState
-import app.gyrolet.mpvrx.ui.liquidglass.LiquidButton
 import app.gyrolet.mpvrx.ui.liquidglass.LocalKyantPlayerBackdrop
 import app.gyrolet.mpvrx.ui.liquidglass.drawCapsuleTint
 import app.gyrolet.mpvrx.ui.liquidglass.liquidGlassEffects
@@ -82,6 +81,7 @@ import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import `is`.xyz.mpv.Utils
 import kotlin.math.roundToInt
+import java.util.Locale
 import app.gyrolet.mpvrx.ui.player.PlayerActivity
 import app.gyrolet.mpvrx.ui.player.PlayerViewModel
 
@@ -416,7 +416,7 @@ internal fun Float.formatSpeed(): String {
   return if (rounded % 1f == 0f) {
     rounded.toInt().toString()
   } else {
-    String.format("%.2f", rounded).trimEnd('0')
+    String.format(Locale.ROOT, "%.2f", rounded).trimEnd('0')
   }
 }
 

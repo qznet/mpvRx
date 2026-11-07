@@ -13,7 +13,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Process
 import android.util.Log
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -37,12 +37,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import app.gyrolet.mpvrx.presentation.components.AppDropdownMenu as DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import app.gyrolet.mpvrx.presentation.components.AppDropdownMenuItem as DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import app.gyrolet.mpvrx.presentation.components.AppTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
@@ -265,6 +265,8 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
             ) {
               DropdownMenuItem(
                 text = { Text("Share Logs File") },
+                index = 0,
+                itemCount = 4,
                 leadingIcon = { Icon(Icons.RoundedFilled.Share, contentDescription = null) },
                 enabled = liveEntries.isNotEmpty(),
                 onClick = {
@@ -285,6 +287,8 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
               )
               DropdownMenuItem(
                 text = { Text(stringResource(R.string.debug_logs_save_to_config)) },
+                index = 1,
+                itemCount = 4,
                 leadingIcon = { Icon(Icons.RoundedFilled.Download, contentDescription = null) },
                 enabled = liveEntries.isNotEmpty(),
                 onClick = {
@@ -311,6 +315,8 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
               )
               DropdownMenuItem(
                 text = { Text("Copy All Logs") },
+                index = 2,
+                itemCount = 4,
                 leadingIcon = { Icon(Icons.RoundedFilled.ContentCopy, contentDescription = null) },
                 enabled = liveEntries.isNotEmpty(),
                 onClick = {
@@ -324,6 +330,8 @@ internal fun DebugLogsScreen(onNavigateBack: () -> Unit) {
               )
               DropdownMenuItem(
                 text = { Text("Clear captured logs") },
+                index = 3,
+                itemCount = 4,
                 leadingIcon = { Icon(Icons.RoundedFilled.Clear, contentDescription = null) },
                 enabled = sourceEntries.isNotEmpty(),
                 onClick = {

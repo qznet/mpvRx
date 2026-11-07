@@ -15,6 +15,7 @@ import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import app.gyrolet.mpvrx.network.awaitResponse
 import app.gyrolet.mpvrx.ui.player.resolveLocalPath
+import app.gyrolet.mpvrx.utils.telemetry.withMeasureTelemetry
 import java.io.BufferedReader
 import java.io.File
 import java.io.FilterInputStream
@@ -92,6 +93,7 @@ object M3UParser {
   private val defaultHttpClient by lazy {
     OkHttpClient
       .Builder()
+      .withMeasureTelemetry()
       .connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
       .readTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
       .build()
@@ -162,7 +164,7 @@ object M3UParser {
     withContext(Dispatchers.IO) {
       try {
         val sourceUrl =
-          if (uri.authority == "com.android.externalstorage.documents" && DocumentsContract.isTreeUri(uri)) {
+          if (isPathBasedDocumentAuthority(uri.authority) && DocumentsContract.isTreeUri(uri)) {
             uri.toString()
           } else {
             uri.resolveLocalPath(context) ?: uri.toString()
@@ -413,7 +415,7 @@ object M3UParser {
     }
 
     if (File(resource).isAbsolute) return normalizeLocalMediaReference(resource + optionSuffix)
-    if (parsedSource?.scheme == "content" && parsedSource.authority == "com.android.externalstorage.documents") {
+    if (parsedSource?.scheme == "content" && isPathBasedDocumentAuthority(parsedSource.authority)) {
       val sourceUri = Uri.parse(source)
       if (DocumentsContract.isTreeUri(sourceUri)) {
         val documentId = DocumentsContract.getDocumentId(sourceUri)

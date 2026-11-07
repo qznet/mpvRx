@@ -9,9 +9,6 @@
 
 package app.gyrolet.mpvrx.utils.media
 
-import app.gyrolet.mpvrx.preferences.PlayerPreferences
-import app.gyrolet.mpvrx.ui.player.PlaybackSession
-
 /**
  * Extracts the file extension from a path or URI string, stripping query
  * parameters and fragment identifiers before extracting the last dot-delimited
@@ -21,27 +18,25 @@ import app.gyrolet.mpvrx.ui.player.PlaybackSession
  * Example:
  * ```
  * "video.mkv?quality=1080#t=10".fileExtension() == "mkv"
+ * "/Audio/clip #edit.mp4".fileExtension() == "mp4"
  * "content://media/123".fileExtension() == ""
  * ```
  */
 fun String.fileExtension(): String {
-  val cleanPath = substringBefore('?').substringBefore('#')
-  val lastSlash = cleanPath.lastIndexOf('/')
-  val lastDot = cleanPath.lastIndexOf('.')
-  return if (lastDot > lastSlash && lastDot != -1 && lastDot < cleanPath.length - 1) {
-    cleanPath.substring(lastDot + 1).lowercase()
+  val scheme = substringBefore("://", missingDelimiterValue = "")
+  // '#' and '?' are legal in file names (e.g. hashtags), so paths keep them while they still end in an extension.
+  if (scheme.isEmpty() || scheme.equals("file", ignoreCase = true)) {
+    lastExtension(this).takeIf { it.isNotEmpty() && it.all(Char::isLetterOrDigit) }?.let { return it }
+  }
+  return lastExtension(substringBefore('?').substringBefore('#'))
+}
+
+private fun lastExtension(path: String): String {
+  val lastSlash = path.lastIndexOf('/')
+  val lastDot = path.lastIndexOf('.')
+  return if (lastDot > lastSlash && lastDot != -1 && lastDot < path.length - 1) {
+    path.substring(lastDot + 1).lowercase()
   } else {
     ""
   }
-}
-
-/**
- * Returns the MPV seek mode string based on the user's precise-seeking preference
- * and the current media duration.  Videos shorter than 2 minutes always use
- * precise seeking for a better scrubbing experience.
- */
-fun resolveSeekMode(playerPreferences: PlayerPreferences): String {
-  val duration = PlaybackSession.getPropertyDouble("duration")?.toInt() ?: 0
-  val usePrecise = playerPreferences.usePreciseSeeking.get() || duration < 120
-  return if (usePrecise) "relative+exact" else "relative+keyframes"
 }

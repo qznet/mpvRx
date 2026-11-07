@@ -13,6 +13,8 @@ import android.content.Context
 import android.os.Build
 import androidx.core.content.pm.PackageInfoCompat
 import app.gyrolet.mpvrx.BuildConfig
+import app.gyrolet.mpvrx.network.awaitResponse
+import app.gyrolet.mpvrx.utils.telemetry.withMeasureTelemetry
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -36,7 +38,7 @@ private object RetryWithoutRangeSignal : IOException("Stored partial is not resu
 class UpdateManager(
   private val context: Context,
 ) {
-  private val client = OkHttpClient()
+  private val client = OkHttpClient.Builder().withMeasureTelemetry().build()
   private val json = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -145,7 +147,7 @@ class UpdateManager(
   private suspend fun getLatestRelease(url: String, allowMissing: Boolean = false): Release? =
     withContext(Dispatchers.IO) {
       val request = Request.Builder().url(url).header("Cache-Control", "no-cache").build()
-      client.newCall(request).execute().use { response ->
+      client.newCall(request).awaitResponse().use { response ->
         // The channel becomes available after the first successful signed CI publication.
         if (allowMissing && response.code == 404) return@withContext null
         if (!response.isSuccessful) throw IOException("Unexpected code $response")
@@ -306,7 +308,7 @@ class UpdateManager(
           .apply { if (alreadyDownloaded > 0L) header("Range", "bytes=$alreadyDownloaded-") }
           .build()
 
-      client.newCall(request).execute().use { response ->
+      client.newCall(request).awaitResponse().use { response ->
         if (response.code == HTTP_RANGE_NOT_SATISFIABLE && allowResume) {
           partial.delete()
           throw RetryWithoutRangeSignal
@@ -415,32 +417,6 @@ class UpdateManager(
   private fun progressOf(downloaded: Long, total: Long?): Float =
     if (total != null && total > 0L) ((downloaded.toDouble() / total) * 100).toFloat().coerceIn(0f, 99f) else -1f
 
-  /**
-   * Progress already banked from a previous session, so the UI can show a resumed download starting
-   * from where it stopped instead of snapping back to 0%.
-   */
-  suspend fun getResumableProgress(release: Release): Float? = withContext(Dispatchers.IO) {
-    if (!BuildConfig.ENABLE_UPDATE_FEATURE) return@withContext null
-    val asset = selectUpdateAsset(release) ?: return@withContext null
-    val partial = File(localApkFile(asset).absolutePath + PART_SUFFIX)
-    val downloaded = partial.takeIf { it.isFile }?.takeIf { it.length() > 0L }?.length() ?: return@withContext null
-    val total = asset.size.takeIf { it > 0L } ?: resolveAssetLength(asset) ?: return@withContext null
-    if (total <= downloaded) return@withContext null
-    progressOf(downloaded, total)
-  }
-
-  private suspend fun resolveAssetLength(asset: Asset): Long? =
-    withContext(Dispatchers.IO) {
-      runCatching {
-        val request = Request.Builder().url(asset.downloadUrl).method("HEAD", null).build()
-        client.newCall(request).execute().use { response ->
-          if (!response.isSuccessful) return@use null
-          response.header("Content-Length")?.toLongOrNull()
-            ?: response.body.contentLength().takeIf { it > 0L }
-        }
-      }.getOrNull()
-    }
-
   suspend fun getApkFile(release: Release): File? = withContext(Dispatchers.IO) {
     // Return null if update feature is disabled
     if (!BuildConfig.ENABLE_UPDATE_FEATURE) {
@@ -480,4 +456,3 @@ class UpdateManager(
     val HEX_DIGITS = "0123456789abcdef".toCharArray()
   }
 }
-

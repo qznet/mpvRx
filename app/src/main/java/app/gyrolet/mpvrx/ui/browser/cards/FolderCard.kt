@@ -10,7 +10,6 @@
 package app.gyrolet.mpvrx.ui.browser.cards
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
+import app.gyrolet.mpvrx.domain.archive.ZipArchiveMedia
 import app.gyrolet.mpvrx.domain.media.model.VideoFolder
 import app.gyrolet.mpvrx.domain.thumbnail.ThumbnailRepository
 import app.gyrolet.mpvrx.preferences.AppearancePreferences
@@ -175,6 +175,7 @@ fun FolderCard(
   viewPreferences: BrowserPageViewPreferences? = null,
   uiConfig: FolderCardUiConfig? = null,
   allowThumbnailGeneration: Boolean = true,
+  listThumbnailSize: Dp = 72.dp,
   selectionNeighbors: MediaSelectionNeighbors = MediaSelectionNeighbors(),
 ) {
   val resolvedUiConfig = uiConfig ?: rememberFolderCardUiConfig(viewPreferences)
@@ -222,8 +223,12 @@ fun FolderCard(
           return@withContext
         }
         val videos =
-          app.gyrolet.mpvrx.repository.MediaFileRepository
-            .getVideosInFolder(context, folder.bucketId)
+          if (ZipArchiveMedia.isBrowserPath(folder.bucketId)) {
+            ZipArchiveMedia.allMedia(context, folder.bucketId, includeAudio).getOrDefault(emptyList())
+          } else {
+            app.gyrolet.mpvrx.repository.MediaFileRepository
+              .getVideosInFolder(context, folder.bucketId)
+          }
         if (videos.isNotEmpty()) {
           // On narrow cells keep one full cover instead of an unreadable 4-tile preview.
           val preview = videos.take(if (showPreviewCollage) 4 else 1)
@@ -265,7 +270,7 @@ fun FolderCard(
   fun PinnedFolderBadge(modifier: Modifier = Modifier) {
     Surface(
       shape = AppShapeScale.full,
-      color = MaterialTheme.colorScheme.primary.copy(alpha = 0.94f),
+      color = MaterialTheme.colorScheme.primary,
       contentColor = MaterialTheme.colorScheme.onPrimary,
       shadowElevation = 3.dp,
       modifier = modifier.rotate(-18f),
@@ -355,14 +360,25 @@ fun FolderCard(
           ) {
             val folderImageBitmap = remember(folderThumbnail) { folderThumbnail?.asImageBitmap() }
             val resolvedThumbnail = thumbnail ?: folderImageBitmap.takeIf { showFolderThumbnails }
-            if (thumbnail == null && showFolderThumbnails && folderPreviewFrames.size > 1 &&
-              folderPreviewFrames.any { it != null }) {
-              FolderPreviewMosaic(folderPreviewFrames, Modifier.matchParentSize().clip(AppShapeScale.medium))
+            val showMosaic = thumbnail == null && showFolderThumbnails && folderPreviewFrames.size > 1 &&
+              folderPreviewFrames.any { it != null }
+            val previewReveal =
+              rememberThumbnailReveal(
+                showMosaic || resolvedThumbnail != null,
+                folder.bucketId,
+                thumbnailGenerator,
+                thumbnailCacheRevision,
+              )
+            if (showMosaic) {
+              FolderPreviewMosaic(
+                folderPreviewFrames,
+                Modifier.matchParentSize().clip(AppShapeScale.medium).thumbnailReveal(previewReveal),
+              )
             } else if (resolvedThumbnail != null) {
               androidx.compose.foundation.Image(
                 bitmap = resolvedThumbnail,
                 contentDescription = null,
-                modifier = Modifier.matchParentSize().clip(AppShapeScale.medium),
+                modifier = Modifier.matchParentSize().clip(AppShapeScale.medium).thumbnailReveal(previewReveal),
                 contentScale = ContentScale.Crop,
               )
             } else {
@@ -482,7 +498,7 @@ fun FolderCard(
           Box(
             modifier =
               Modifier
-                .size(72.dp)
+                .size(listThumbnailSize)
                 .tvFocusHighlight(AppShapeScale.medium, focusedScale = 1.03f)
                 .mediaCardClickable(
                   onClick = onThumbClick,

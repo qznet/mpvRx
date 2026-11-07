@@ -30,11 +30,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import app.gyrolet.mpvrx.R
 import app.gyrolet.mpvrx.ui.liquidglass.LiquidPillButton
 import app.gyrolet.mpvrx.ui.theme.AppShapeScale
+import app.gyrolet.mpvrx.ui.theme.controlColor
 import app.gyrolet.mpvrx.ui.theme.spacing
 import dev.vivvvek.seeker.Segment
 import `is`.xyz.mpv.Utils
@@ -55,7 +56,9 @@ fun CurrentChapter(
   onClick: () -> Unit = {},
   onLongClick: () -> Unit = {},
 ) {
-  val enableLiquidGlass = liquidGlassActive()
+  val borderless = LocalBorderlessPlayerControls.current
+  val enableLiquidGlass = liquidGlassActive() && !borderless
+  val chapterContentColor = if (borderless) controlColor else playerButtonContentColor()
 
   val chapterContent: @Composable () -> Unit = {
     AnimatedContent(
@@ -83,28 +86,28 @@ fun CurrentChapter(
         Text(
           text = timeText,
           fontWeight = FontWeight.Bold,
-          style = MaterialTheme.typography.bodyMedium,
+          style = MaterialTheme.typography.titleMedium,
           maxLines = 1,
           overflow = TextOverflow.Clip,
-          color = MaterialTheme.colorScheme.primary,
+          color = if (borderless) chapterContentColor else MaterialTheme.colorScheme.primary,
         )
         currentChapter.name.let {
           Text(
             text = Typography.bullet.toString(),
             textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = chapterContentColor,
             overflow = TextOverflow.Clip,
           )
           Text(
             text = it,
             textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = chapterContentColor,
             modifier = Modifier.basicMarquee(),
           )
         }
@@ -135,15 +138,10 @@ fun CurrentChapter(
             onLongClickLabel = stringResource(R.string.audiobook_add_bookmark),
           ),
       shape = AppShapeScale.full,
-      color =
-        playerButtonContainerColor(),
-      contentColor = MaterialTheme.colorScheme.onSurface,
+      color = if (borderless) Color.Transparent else playerButtonContainerColor(),
+      contentColor = chapterContentColor,
       tonalElevation = 0.dp,
-      border =
-        BorderStroke(
-          1.dp,
-          playerButtonBorderColor(),
-        ),
+      border = if (borderless) null else BorderStroke(1.dp, playerButtonBorderColor()),
     ) {
       chapterContent()
     }

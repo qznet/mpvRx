@@ -52,7 +52,7 @@ val sideloadDistributions = setOf("standard", "noVulkan", "fongmi")
 // AGP cannot build an app bundle while ABI splits produce multiple APKs (issuetracker 402800800).
 val isBundleBuild =
   gradle.startParameter.taskNames.any { it.substringAfterLast(':').startsWith("bundle") }
-val releaseVersionCode = 302
+val releaseVersionCode = 303
 val versionCodeBandSize = 10_000
 val stableVersionCode = releaseVersionCode * versionCodeBandSize + (versionCodeBandSize - 1)
 val previewVersionCode =
@@ -66,10 +66,21 @@ plugins {
   alias(libs.plugins.ksp)
   alias(libs.plugins.room)
   alias(libs.plugins.ktlint)
+  id("sh.measure.android.gradle") version "0.14.0" apply false
+}
+
+// Supply the ingestion key through a local Gradle property or the CI secret.
+val measureApiKey =
+  providers.gradleProperty("measureApiKey").orElse(providers.environmentVariable("MEASURE_API_KEY")).getOrElse("")
+if (measureApiKey.isNotBlank()) {
+  apply(plugin = "sh.measure.android.gradle")
 }
 
 androidComponents {
   onVariants(selector().all()) { variant ->
+    // Measure 0.14 only rewrites OkHttp through 5.3.2. Attach its public SDK hooks
+    // to our clients instead, preserving OkHttp 5.5 and avoiding duplicate instrumentation.
+    variant.instrumentation.excludes.add("okhttp3/OkHttpClient")
     variant.instrumentation.transformClassesWith(
       SmbRpcExceptionCompatibility::class.java,
       InstrumentationScope.ALL,
@@ -83,13 +94,16 @@ android {
   ndkVersion = "27.3.13750724"
 
   defaultConfig {
+    manifestPlaceholders["measureApiKey"] = measureApiKey
+    buildConfigField("boolean", "MEASURE_CONFIGURED", measureApiKey.isNotBlank().toString())
     applicationId = "app.gyrolet.mpvrx"
     minSdk = 26
     targetSdk = 36
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     // Stable occupies the top of its version band. Preview uses the next band's commit-count
     // offset, so Stable -> Preview -> newer Preview -> next Stable is always an Android upgrade.
     versionCode = stableVersionCode
-    versionName = "3.0.2"
+    versionName = "3.0.2.1"
 
     vectorDrawables {
       useSupportLibrary = true
@@ -130,6 +144,8 @@ android {
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
+      // FongMi's mpv ships the GPU motion interpolation core.
+      buildConfigField("boolean", "MPV_SUPPORTS_MOTION_INTERPOLATION", "false")
     }
 
     create("playstore") {
@@ -140,6 +156,8 @@ android {
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
+      // FongMi's mpv ships the GPU motion interpolation core.
+      buildConfigField("boolean", "MPV_SUPPORTS_MOTION_INTERPOLATION", "false")
     }
 
     create("noVulkan") {
@@ -150,6 +168,8 @@ android {
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "false")
+      // FongMi's mpv ships the GPU motion interpolation core.
+      buildConfigField("boolean", "MPV_SUPPORTS_MOTION_INTERPOLATION", "false")
     }
 
     create("fongmi") {
@@ -160,11 +180,15 @@ android {
       buildConfigField("boolean", "SCOPED_STORAGE_ONLY", "false")
       buildConfigField("boolean", "MPV_SUPPORTS_VULKAN", "true")
       buildConfigField("boolean", "MPV_SUPPORTS_MEDIACODEC_VULKAN", "true")
+      // FongMi's mpv ships the GPU motion interpolation core.
+      buildConfigField("boolean", "MPV_SUPPORTS_MOTION_INTERPOLATION", "true")
     }
 
     configureEach {
       val enableYtdlp = name in sideloadDistributions
       buildConfigField("boolean", "ENABLE_YTDLP", enableYtdlp.toString())
+      buildConfigField("boolean", "ENABLE_TORRENT", enableYtdlp.toString())
+      if (enableYtdlp) proguardFile("src/sideload/proguard-rules.pro")
       externalNativeBuild {
         cmake {
           arguments += "-DMPVRX_ENABLE_YTDLP=${if (enableYtdlp) "ON" else "OFF"}"
@@ -176,6 +200,9 @@ android {
   sourceSets {
     sideloadDistributions.forEach { flavor ->
       getByName(flavor).apply {
+        // AGP's built-in Kotlin requires custom Kotlin directories on this source set.
+        kotlin.directories.add("src/sideload/java")
+        manifest.srcFile("src/sideload/AndroidManifest.xml")
         assets.directories.add("src/ytdlp/assets")
         jniLibs.directories.add("src/ytdlp/jniLibs")
       }
@@ -212,7 +239,9 @@ android {
         "proguard-rules.pro",
       )
       ndk {
-        debugSymbolLevel = "none"
+        // Include native symbol tables in Play Store app bundles for crash/ANR diagnosis.
+        // Keep the smaller symbol-table level instead of bundling full DWARF info.
+        debugSymbolLevel = "SYMBOL_TABLE"
       }
     }
 
@@ -289,6 +318,15 @@ androidComponents {
         dimension == "distribution" && flavor in universalOnlyDistributions
       }
 
+    // Play Console requires a fresh code for each uploaded commit. Both the APK and AAB
+    // use the same history-derived code; rebuilding a commit keeps its identity stable.
+    val isPlayStoreRelease =
+      variant.buildType == "release" &&
+        !isExperimentalBuild &&
+        variant.productFlavors.any { (dimension, flavor) ->
+          dimension == "distribution" && flavor == "playstore"
+        }
+
     variant.outputs.forEach { output ->
       val abi =
         output.filters
@@ -305,7 +343,24 @@ androidComponents {
         } else {
           output.versionCode.orNull ?: stableVersionCode
         }
-      output.versionCode.set(channelVersionCode * 10 + (abiCodes[abi] ?: 0))
+      if (isPlayStoreRelease) {
+        output.versionCode.set(providers.provider {
+          check(runCommand("git rev-parse --is-shallow-repository") == "false") {
+            "Play Store release builds require full Git history (fetch-depth: 0)."
+          }
+          val commitCount = getCommitCount().toIntOrNull()
+          check(commitCount != null && commitCount > 0) {
+            "Cannot determine the Play Store version code without a Git commit count."
+          }
+          val playStoreVersionCode = stableVersionCode.toLong() * 10 + commitCount
+          check(playStoreVersionCode <= 2_100_000_000L) {
+            "Play Store version code exceeds Google Play's limit."
+          }
+          playStoreVersionCode.toInt()
+        })
+      } else {
+        output.versionCode.set(channelVersionCode * 10 + (abiCodes[abi] ?: 0))
+      }
     }
   }
 }
@@ -329,7 +384,20 @@ room {
   schemaDirectory("$projectDir/schemas")
 }
 
+// Ship no ART profiles: AGP otherwise compiles the AndroidX libraries' own profiles into each release.
+tasks.configureEach {
+  if (name.startsWith("compile") && name.endsWith("ArtProfile")) enabled = false
+}
+
+configurations.configureEach {
+  // AndroidX pulls ProfileInstaller in only to install those profiles.
+  exclude(group = "androidx.profileinstaller", module = "profileinstaller")
+}
+
 dependencies {
+  implementation("sh.measure:measure-android:0.22.0")
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.ext.junit)
   implementation(libs.androidx.activity.compose)
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.ui)
@@ -375,6 +443,7 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer.hls)
   implementation(libs.androidx.media3.effect)
   implementation(libs.androidx.media3.transformer)
+  implementation(libs.androidx.media3.ui)
   implementation(platform(libs.sora.editor.bom))
   implementation(libs.sora.editor)
   implementation(libs.sora.language.textmate)
@@ -385,7 +454,6 @@ dependencies {
   implementation(libs.truetype.parser)
   implementation(libs.fsaf)
   implementation(libs.mediainfo.lib)
-  implementation(libs.androidx.profileinstaller)
   implementation(libs.google.cast.framework)
 
   "standardImplementation"(variantOf(libs.mpvlib.standard) { artifactType("aar") })
@@ -416,10 +484,9 @@ dependencies {
   implementation(libs.kyant.backdrop)
   implementation(libs.kyant.shapes)
 
-  // libtorrent4j's Java API compiles everywhere; its native library for every enabled APK ABI
-  // ships only where torrent streaming exists.
-  implementation(libs.libtorrent4j)
+  // Keep both the Java API and native payloads out of the Play Store compilation classpath.
   sideloadDistributions.forEach { flavor ->
+    "${flavor}Implementation"(libs.libtorrent4j)
     "${flavor}Implementation"(libs.libtorrent4j.android.arm64)
     "${flavor}Implementation"(libs.libtorrent4j.android.arm)
     if (enableX86) {

@@ -1,28 +1,20 @@
 #version 300 es
 precision highp float;
 
-in vec3 vCol;
-in float vLife;
-in float vCoreIntensity;
-
+in float vGlow;
+in float vHot;
 out vec4 o;
 
 void main() {
-  vec2 pc = gl_PointCoord - vec2(0.5);
+  vec2 pc = gl_PointCoord * 2.0 - 1.0;
   float distSq = dot(pc, pc);
-  if (distSq > 0.25) {
-    discard;
-  }
-  float dist = sqrt(distSq) * 2.0; // 0.0 at center, 1.0 at outer edge
-
-  // Crisp hot core at center + smooth anti-aliased edge + luminous glow halo
-  float core = 1.0 - smoothstep(0.0, 0.22, dist);
-  float halo = 1.0 - smoothstep(0.12, 0.88, dist);
-  float alphaEdge = 1.0 - smoothstep(0.82, 1.0, dist);
-
-  // Combine crisp white-hot center core with rich colored halo
-  vec3 particleColor = mix(vCol, vec3(1.0), core * 0.65 * vCoreIntensity);
-  float finalAlpha = (halo * 0.80 + core * 0.20) * alphaEdge;
-
-  o = vec4(particleColor * finalAlpha, finalAlpha);
+  // Evaluate derivatives before any clipping so subpixel edges remain smooth as points move.
+  float edgeWidth = max(fwidth(distSq), 0.001);
+  float coverage = 1.0 - smoothstep(max(0.0, 1.0 - edgeWidth), 1.0, distSq);
+  float core = exp(-distSq * 18.0);
+  float halo = exp(-distSq * 4.5);
+  float glow = vGlow * (core * 0.55 + halo * 0.45) * coverage;
+  float hot = vHot * core * coverage;
+  // R carries total light for opacity; G carries core heat for the two-tone theme tint.
+  o = vec4(glow + hot, hot, 0.0, 0.0);
 }

@@ -12,7 +12,6 @@ package app.gyrolet.mpvrx.preferences
 import app.gyrolet.mpvrx.preferences.preference.Preference
 import app.gyrolet.mpvrx.preferences.preference.PreferenceStore
 import app.gyrolet.mpvrx.preferences.preference.getEnum
-import kotlinx.coroutines.flow.Flow
 import app.gyrolet.mpvrx.ui.browser.music.MusicSortField
 import app.gyrolet.mpvrx.ui.browser.music.MusicSortOrder
 import app.gyrolet.mpvrx.ui.browser.music.MusicViewMode
@@ -86,7 +85,10 @@ class BrowserPreferences(
       inheritGlobalLayout = false,
     )
   val recentView = BrowserPageViewPreferences(preferenceStore, "recent", thumbnailsByDefault = !television)
-  val playlistView = BrowserPageViewPreferences(preferenceStore, "playlist_library", folderDefaults = true)
+  val playlistView = BrowserPageViewPreferences(
+    preferenceStore, "playlist_library", folderDefaults = true,
+    thumbnailsByDefault = true, inheritGlobalThumbnails = false,
+  )
   val playlistItemView =
     BrowserPageViewPreferences(preferenceStore, "playlist_item", thumbnailsByDefault = !television)
   val showPlaylistLocation = preferenceStore.getBoolean("show_playlist_location", true)
@@ -150,6 +152,7 @@ class BrowserPreferences(
   val showSubtitleIndicator = preferenceStore.getBoolean("show_subtitle_indicator", false)
   val showCodecSupportIndicator = preferenceStore.getBoolean("show_codec_support_indicator", false)
   val showProgressBar = preferenceStore.getBoolean("show_progress_bar", true)
+  val grayscaleWatchedThumbnails = preferenceStore.getBoolean("grayscale_watched_thumbnails", true)
   val centerGridTitles = preferenceStore.getBoolean("center_grid_titles", true)
   val mediaLayoutMode = preferenceStore.getEnum("media_layout_mode", MediaLayoutMode.LIST)
   val folderViewFolderLayoutMode = preferenceStore.getEnum("folder_view_folder_layout_mode", MediaLayoutMode.LIST)
@@ -207,6 +210,7 @@ class BrowserPageViewPreferences internal constructor(
    */
   inheritGlobalLayout: Boolean = true,
   thumbnailsByDefault: Boolean = !folderDefaults,
+  inheritGlobalThumbnails: Boolean = true,
 ) {
   val layoutMode =
     if (inheritGlobalLayout) {
@@ -227,11 +231,13 @@ class BrowserPageViewPreferences internal constructor(
     0,
     if (folderDefaults) "folder_grid_columns_landscape" else "video_grid_columns_landscape",
   )
-  val showThumbnails = boolean(
-    "show_thumbnails",
-    thumbnailsByDefault,
-    if (folderDefaults) "show_folder_thumbnails" else "show_video_thumbnails",
-  )
+  val showThumbnails =
+    if (inheritGlobalThumbnails) {
+      boolean("show_thumbnails", thumbnailsByDefault, if (folderDefaults) "show_folder_thumbnails" else "show_video_thumbnails")
+    } else {
+      // Playlist covers start visible independently of the folder-thumbnail setting.
+      preferenceStore.getBoolean("${prefix}_show_thumbnails", thumbnailsByDefault)
+    }
   val unlimitedNameLines = boolean("unlimited_name_lines", false)
   val centerGridTitles = boolean("center_grid_titles", true)
   val showExtensionField = boolean("show_extension_field", false)
@@ -242,6 +248,7 @@ class BrowserPageViewPreferences internal constructor(
   val showSubtitleIndicator = boolean("show_subtitle_indicator", false)
   val showCodecSupportIndicator = boolean("show_codec_support_indicator", false)
   val showProgressBar = boolean("show_progress_bar", true)
+  val grayscaleWatchedThumbnails = boolean("grayscale_watched_thumbnails", true)
   val showDateChip = boolean("show_date_chip", false)
   val showItemCount = boolean("show_item_count", true, "show_total_videos_chip")
   val showLocation = boolean("show_location", true, "show_playlist_location")

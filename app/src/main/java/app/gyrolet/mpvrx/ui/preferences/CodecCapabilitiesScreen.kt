@@ -14,12 +14,10 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -572,9 +570,7 @@ object CodecCapabilitiesScreen : Screen {
       }
     }
 
-    val copiedToastMsg = stringResource(R.string.pref_codecs_report_copied)
-
-    val copyReportToClipboard = {
+    val copyReportToClipboard: () -> Unit = {
       val sb = StringBuilder()
       sb.appendLine("=== mpvRx Hardware vs Software Codec Diagnostics ===")
       sb.appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})")
@@ -605,7 +601,6 @@ object CodecCapabilitiesScreen : Screen {
       }
 
       SafeClipboard.copyPlainText(context, "Codec Report", sb.toString())
-      Toast.makeText(context, copiedToastMsg, Toast.LENGTH_SHORT).show()
     }
 
     Scaffold(

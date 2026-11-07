@@ -172,8 +172,10 @@ enum class Sheets {
   VisualizerStyle,
   Lyrics,
   LyricsProvider,
+  LyricsTranslate,
   Scopes,
   PostProcessingConfig,
+  MotionInterpolation,
   BookmarkEditor,
   AudiobookRewind,
   AudiobookSleepTimer,
@@ -188,6 +190,7 @@ enum class Panels {
   VideoFilters,
   LuaScripts,
   HdrScreenOutput,
+  PlayerSettings,
 }
 
 sealed class PlayerUpdates {

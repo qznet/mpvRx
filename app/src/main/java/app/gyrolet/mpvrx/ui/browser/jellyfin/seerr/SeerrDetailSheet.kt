@@ -830,6 +830,7 @@ fun SeerrDetailSheet(
                 val profileUrl = member.getProfileUrl()
                 if (!profileUrl.isNullOrBlank()) {
                   RemoteImage(
+                    maxDimensionPx = 512,
                     url = profileUrl,
                     contentDescription = member.name,
                     contentScale = ContentScale.Crop,

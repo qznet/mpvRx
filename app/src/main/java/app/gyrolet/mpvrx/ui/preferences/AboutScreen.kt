@@ -15,7 +15,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.ImageView
-import android.widget.Toast
+import app.gyrolet.mpvrx.ui.components.AppToast as Toast
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -403,14 +403,7 @@ object AboutScreen : Screen {
                         context = context,
                         label = "mpvrx_upi_id",
                         text = "panditritesh2001@okhdfcbank",
-                        showToast = false,
                       )
-                      Toast
-                        .makeText(
-                          context,
-                          context.getString(app.gyrolet.mpvrx.R.string.ui_upi_id_copied),
-                          Toast.LENGTH_SHORT,
-                        ).show()
                     }.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -953,13 +946,6 @@ internal val OPEN_SOURCE_LIBRARIES =
       url = "https://developer.android.com/jetpack/androidx/releases/palette",
     ),
     OpenSourceLibrary(
-      name = "AndroidX Profile Installer",
-      artifact = "androidx.profileinstaller:profileinstaller",
-      descriptionRes = R.string.oss_androidx_profile_installer_description,
-      license = "Apache-2.0",
-      url = "https://developer.android.com/jetpack/androidx/releases/profileinstaller",
-    ),
-    OpenSourceLibrary(
       name = "Google Material",
       artifact = "com.google.android.material:material",
       descriptionRes = R.string.oss_google_material_description,
@@ -1120,4 +1106,10 @@ internal val OPEN_SOURCE_LIBRARIES =
       license = "MIT",
       url = "https://github.com/natural-harmonia-gropius/hdr-toys",
     ),
-  ).sortedBy { library -> library.name.lowercase(Locale.ROOT) }
+  ).filter { library ->
+    when (library.name) {
+      "libtorrent4j" -> BuildConfig.ENABLE_TORRENT
+      "Python", "yt-dlp" -> BuildConfig.ENABLE_YTDLP
+      else -> true
+    }
+  }.sortedBy { library -> library.name.lowercase(Locale.ROOT) }

@@ -27,10 +27,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATION" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     
+    <!-- RECORD_AUDIO supports optional audio visualization; multicast supports casting.
+         Neither permission should make its hardware a Google Play installation requirement. -->
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi"
+        android:required="false" />
     <uses-feature
         android:name="android.hardware.usb.host"
         android:required="false" />
@@ -40,6 +47,25 @@
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />
+
+    <!-- Lets pickers check for a system document picker first; many TVs (Fire TV) ship none. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.CREATE_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
 
     <application
         android:name=".App"
@@ -56,6 +82,9 @@
         android:hardwareAccelerated="true"
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="35">
+        <!-- Manifest placeholder is supplied from MEASURE_API_KEY at build time. -->
+        <meta-data android:name="sh.measure.android.API_KEY" android:value="${measureApiKey}" />
+        <meta-data android:name="sh.measure.android.API_URL" android:value="https://ingest.measure.sh" />
         <!-- Initialize WorkManager on demand, outside the startup rendering path. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -68,11 +97,6 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
-        <receiver android:name=".domain.update.UpdateInstallReceiver" android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-            </intent-filter>
-        </receiver>
         <meta-data
             android:name="com.samsung.android.support.ongoing_activity"
             android:value="true" />
@@ -86,10 +110,6 @@
                 android:value="true" />
         </service>
 
-        <service
-            android:name=".domain.download.YtdlpDownloadService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".domain.download.DirectDownloadService"
@@ -1326,19 +1346,26 @@
 
                 <data android:mimeType="video/*" />
                 <data android:mimeType="audio/*" />
-                <data android:mimeType="*/rmvb" />
-                <data android:mimeType="*/avi" />
-                <data android:mimeType="*/mkv" />
-                <data android:mimeType="application/3gpp*" />
+                <data android:mimeType="application/rmvb" />
+                <data android:mimeType="application/avi" />
+                <data android:mimeType="application/mkv" />
+                <!-- Android supports type/*, not MIME prefix globs such as application/mpeg*.
+                     Standard 3GPP and Dolby audio/video types are covered by audio/* and video/*. -->
+                <data android:mimeType="application/3gpp" />
+                <data android:mimeType="application/3gpp2" />
                 <data android:mimeType="application/mp4" />
-                <data android:mimeType="application/mpeg*" />
+                <data android:mimeType="application/mpeg" />
+                <data android:mimeType="application/mpeg4-generic" />
+                <data android:mimeType="application/mpeg4-iod" />
+                <data android:mimeType="application/mpeg4-iod-xmt" />
                 <data android:mimeType="application/ogg" />
                 <data android:mimeType="application/sdp" />
-                <data android:mimeType="application/vnd.3gp*" />
                 <data android:mimeType="application/vnd.apple.mpegurl" />
-                <data android:mimeType="application/vnd.dvd*" />
-                <data android:mimeType="application/vnd.dolby*" />
-                <data android:mimeType="application/vnd.rn-realmedia*" />
+                <data android:mimeType="application/vnd.dvd" />
+                <data android:mimeType="application/vnd.dolby.mobile.1" />
+                <data android:mimeType="application/vnd.dolby.mobile.2" />
+                <data android:mimeType="application/vnd.rn-realmedia" />
+                <data android:mimeType="application/vnd.rn-realmedia-vbr" />
                 <data android:mimeType="application/x-extension-mp4" />
                 <data android:mimeType="application/x-flac" />
                 <data android:mimeType="application/x-iso9660-image" />
@@ -1386,6 +1413,8 @@
                 <data android:host="*"
                     tools:ignore="AppLinkUrlError" />
 
+                <!-- Generic media links intentionally accept any host. These are unverified
+                     deep links, not owned-domain App Links; do not enable autoVerify for *. -->
                 <!-- basically copied from mpv-android -->
                 <!-- the duplicate patterns below work around an Android bug: -->
                 <!-- http://stackoverflow.com/questions/3400072/#answer-8599921 -->
@@ -1461,178 +1490,23 @@
                 <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.ogg" />
                 <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.ogg" />
 
-                <data android:pathPattern=".*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\..*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.m3u8*" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.m3u8*" />
+                <data android:pathPattern=".*\\.m3u" />
+                <data android:pathPattern=".*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\..*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.m3u8" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.m3u" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.m3u8" />
             </intent-filter>
 
-            <!-- Streaming-site link filters live on WebStreamLinksActivityAlias so they can be
-                 toggled off without touching direct media URL/MIME handling (issue #525). -->
-        </activity>
-
-        <activity-alias
-            android:name=".ui.player.WebStreamLinksActivityAlias"
-            android:targetActivity=".ui.player.PlayerActivity"
-            android:exported="true"
-            android:enabled="true">
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
-
-            <!-- various URL intent filters for popular youtube-dl extractors -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="youtu.be" />
-                <data android:host="m.youtube.com" />
-                <data android:host="youtube.com" />
-                <data android:host="www.youtube.com" />
-                <data android:host="studio.youtube.com" />
-            </intent-filter>
-
-            <intent-filter> <!-- FIXME: all following patterns are suboptimal because they also match the homepages -->
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="www.vimeo.com" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="vimeo.com" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="twitch.tv" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="m.twitch.tv" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="clips.twitch.tv" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="odysee.com" />
-                <data android:pathPattern="/@.*" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="bilibili.com" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="*.bilibili.com" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:host="b23.tv" />
-                <data android:pathPattern=".*" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity
-            android:name=".ui.torrent.TorrentSelectionActivity"
-            android:exported="true"
-            android:grantUriPermissions="true"
-            android:theme="@style/Theme.mpvrx">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="magnet" />
-                <data android:scheme="torrent" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="content" />
-                <data android:scheme="file" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:mimeType="application/x-bittorrent" />
-                <data android:mimeType="application/x-torrent" />
-                <data android:mimeType="application/torrent" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-                <data android:pathPattern=".*\\.torrent" />
-                <data android:pathPattern=".*\\..*\\.torrent" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data android:mimeType="application/x-bittorrent" />
-                <data android:mimeType="application/x-torrent" />
-                <data android:mimeType="application/torrent" />
-            </intent-filter>
+            <!-- Extractor-site handlers are declared only by the sideload manifest. -->
         </activity>
 
         <activity
@@ -1748,6 +1622,19 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".ui.tv.TvPickerActivity"
+            android:exported="false" />
+        <provider
+            android:name=".ui.tv.TvDocumentsProvider"
+            android:authorities="${applicationId}.tvdocuments"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
