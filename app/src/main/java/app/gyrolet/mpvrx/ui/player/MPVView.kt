@@ -819,7 +819,26 @@ class MPVView(
   private fun isMediaCodecEmbedActive(): Boolean =
     runCatching { decoderPreferences.mediaCodecEmbed.get() }.getOrDefault(true)
 
+  /**
+   * The configured embed switch is authoritative for the whole session, but
+   * PlaybackSession.videoOutput is only published once the core has been configured. Surface
+   * callbacks can run before that, so gate layout work on both - otherwise the letterbox is
+   * skipped on a second playback and the MediaCodec buffer is stretched into the full viewport.
+   */
+  private fun isEmbedSessionActive(): Boolean =
+    PlaybackSession.videoOutput == "mediacodec_embed" || isMediaCodecEmbedActive()
+
   private var lastEmbedAspect: Double? = null
+  /** True once the embed letterbox rectangle has been committed to layoutParams for this View. */
+  private var embedBoundsApplied = false
+  /** DAR the committed rectangle was computed from. */
+  private var embedBoundsDar = 0.0
+  /** PlaybackSession generation the committed rectangle belongs to. */
+  private var embedBoundsGeneration = Long.MIN_VALUE
+  /** Short retry budget while waiting for the decoded size after a Surface bind. */
+  private var darRetryCount = 0
+  /** DAR that last produced a correct letterbox from real decoded dimensions, across files. */
+  private var lastSuccessfulEmbedDar = 0.0
 
   /**
    * Letterboxes vo=mediacodec_embed at the view level.
@@ -829,31 +848,24 @@ class MPVView(
    * that matches the source DAR lets the black parent show through as letterbox/pillarbox.
    * No-op for every other video output.
    */
-  fun applyEmbedAspectRatio(aspect: Double?) {
-    if (!isMediaCodecEmbedActive()) return
-    // vo=mediacodec_embed bypasses mpv's scaler, and video-params/aspect is unreliable for it
-    // (it frequently reports the surface/container ratio, so a 4:3 source would be letterboxed as
-    // if it were 16:9 and end up stretched). Derive the true DAR from the decoded width/height +
-    // rotation, which is always correct; fall back to the event value only if dimensions are unknown.
-    // No synchronous mpv read here: both sources above are cached/event values. A synchronous
-    // PlaybackSession property read on the observer thread is what froze the UI previously.
-    val dar = computeEmbedDisplayAspect()
-      ?: aspect?.takeIf { it > 0.0 }
-    // Guard against an absurd aspect (a 0x0 / gigantic SurfaceView can crash the embedded decoder).
-    val safeDar = dar?.takeIf { it in 0.2..5.0 }
-    if (safeDar != null) lastEmbedAspect = safeDar
+  fun applyEmbedAspectRatio(_aspect: Double? = null) {
+    if (!isEmbedSessionActive()) {
+      restoreFullSizeEmbedBounds()
+      return
+    }
+    // video-params/aspect reports the CONTAINER ratio under vo=mediacodec_embed (1.7778 even for
+    // a 2.4:1 file). It must NEVER be a DAR source: using it as the first-frame fallback stretched
+    // the picture until a different file was selected. Trust only real decoded dimensions, read
+    // from the observer cache (a synchronous mpv read inside an observer blocks the UI).
+    cachedEmbedDisplayAspect()?.takeIf { it in 0.2..5.0 }?.let {
+      lastEmbedAspect = it
+      lastSuccessfulEmbedDar = it
+    }
     applyEmbedAspectRatioBounds()
   }
 
-  /**
-   * True source DAR for vo=mediacodec_embed: decoded dimensions with rotation applied.
-   *
-   * Reads the cached observer values (fed by the dedicated video-params/w|h|rotate observers in
-   * [observedProps]) instead of calling into mpv synchronously. A synchronous [PlaybackSession]
-   * property read from inside an observer callback blocks the dispatch thread — that is what froze
-   * the UI (dead back button, then a watchdog-tripped crash) in the previous build.
-   */
-  private fun computeEmbedDisplayAspect(): Double? {
+  /** True source DAR from the observer cache only. Safe on mpv's event dispatch thread. */
+  private fun cachedEmbedDisplayAspect(): Double? {
     val w = PlaybackSession.propInt["video-params/w"].value ?: 0
     val h = PlaybackSession.propInt["video-params/h"].value ?: 0
     if (w <= 0 || h <= 0) return null
@@ -861,9 +873,60 @@ class MPVView(
     return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
   }
 
-  private fun applyEmbedAspectRatioBounds() {
-    if (!isMediaCodecEmbedActive()) return
-    val dar = lastEmbedAspect ?: return
+  /**
+   * True source DAR with a direct mpv read as fallback. The observer cache is emptied when a file
+   * ends, so a second playback of the same core can start without any decoded size. Only call
+   * this from the main thread OUTSIDE mpv's event dispatch: a synchronous read inside an observer
+   * callback freezes the dispatch thread and the whole UI.
+   */
+  private fun computeEmbedDisplayAspect(): Double? {
+    cachedEmbedDisplayAspect()?.let { return it }
+    val w = runCatching { MPVLib.getPropertyInt("video-params/w") }.getOrNull() ?: 0
+    val h = runCatching { MPVLib.getPropertyInt("video-params/h") }.getOrNull() ?: 0
+    if (w <= 0 || h <= 0) return null
+    val rotate = runCatching { MPVLib.getPropertyInt("video-params/rotate") }.getOrNull() ?: 0
+    return if (rotate % 180 == 90) h.toDouble() / w.toDouble() else w.toDouble() / h.toDouble()
+  }
+
+  private fun applyEmbedAspectRatioBounds(allowDirectRead: Boolean = false) {
+    if (!isEmbedSessionActive()) return
+    val generation = PlaybackSession.state.value.generation
+    // A new file must not inherit the previous file's rectangle or its per-file DAR state.
+    if (generation != embedBoundsGeneration) {
+      lastEmbedAspect = null
+      embedBoundsApplied = false
+      embedBoundsDar = 0.0
+      darRetryCount = 0
+      // Mark the generation as seen even before a rectangle is committed, otherwise a file that
+      // never produces a decoded size would reset the retry budget on every single call.
+      embedBoundsGeneration = generation
+    }
+    if (isInLayout) {
+      // The framework drops layoutParams changes made during a layout pass. Retry on the next
+      // frame instead of silently losing the letterbox (that is what left the picture stretched).
+      post { applyEmbedAspectRatioBounds(allowDirectRead) }
+      return
+    }
+    // Trust ONLY the decoded size. On a second playback the cache can be empty, in which case a
+    // direct read is allowed (outside mpv's event thread) and the last known-good DAR is used as
+    // a temporary fallback. Keep retrying for a moment so the real size can still correct it.
+    val measured = (if (allowDirectRead) computeEmbedDisplayAspect() else cachedEmbedDisplayAspect())
+      ?.takeIf { it in 0.2..5.0 }
+    if (measured == null) scheduleDarRetry()
+    val dar = measured
+      ?: lastSuccessfulEmbedDar.takeIf { it > 0.0 }
+      ?: return
+    if (measured != null) {
+      lastEmbedAspect = measured
+      // Only a real decoded size may become the cross-file fallback. A fallback DAR must never
+      // overwrite it, or one wrong frame poisons every later video.
+      lastSuccessfulEmbedDar = measured
+    }
+    // Allow a genuine DAR change within the SAME file: the decoded size frequently arrives after
+    // the first Surface bind, and freezing per generation left those files stretched for good.
+    if (embedBoundsApplied && generation == embedBoundsGeneration &&
+      kotlin.math.abs(dar - embedBoundsDar) < 0.05
+    ) return
     val container = parent as? ViewGroup ?: return
     val containerWidth = container.width
     val containerHeight = container.height
@@ -879,7 +942,15 @@ class MPVView(
       videoHeight = containerHeight
     }
     val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
-    if (params.width == videoWidth && params.height == videoHeight) return
+    // The decoded size wobbles by a pixel or two between frames. Every re-layout rebuilds the
+    // SurfaceView, and with it the MediaCodec output, so keep the existing rectangle when it is
+    // already within a few pixels of the target.
+    if (kotlin.math.abs(params.width - videoWidth) <= EMBED_BOUNDS_TOLERANCE_PX &&
+      kotlin.math.abs(params.height - videoHeight) <= EMBED_BOUNDS_TOLERANCE_PX
+    ) {
+      commitEmbedBounds(dar, generation)
+      return
+    }
     Log.i(TAG, "MediaCodec embed letterbox: dar=$dar container=${containerWidth}x$containerHeight -> ${videoWidth}x$videoHeight")
     params.width = videoWidth
     params.height = videoHeight
@@ -890,11 +961,34 @@ class MPVView(
     params.horizontalBias = 0.5f
     params.verticalBias = 0.5f
     layoutParams = params
+    commitEmbedBounds(dar, generation)
+  }
+
+  private fun commitEmbedBounds(dar: Double, generation: Long) {
+    embedBoundsApplied = true
+    embedBoundsDar = dar
+    embedBoundsGeneration = generation
+  }
+
+  /**
+   * The decoded size is not always available when a Surface is bound (the mpv core is reused on a
+   * second playback). Retry briefly with a direct read so a real size can correct a temporary
+   * fallback rectangle; give up after a few seconds instead of polling forever.
+   */
+  private fun scheduleDarRetry() {
+    if (darRetryCount >= 12) return
+    darRetryCount++
+    postDelayed({
+      if (isEmbedSessionActive()) applyEmbedAspectRatioBounds(allowDirectRead = true)
+    }, 250L)
   }
 
   /** Drops the embed letterbox from a previous session so gpu/gpu-next gets the full viewport back. */
   private fun restoreFullSizeEmbedBounds() {
     lastEmbedAspect = null
+    embedBoundsApplied = false
+    embedBoundsDar = 0.0
+    embedBoundsGeneration = Long.MIN_VALUE
     val params = layoutParams as? ConstraintLayout.LayoutParams ?: return
     if (params.width == ViewGroup.LayoutParams.MATCH_PARENT &&
       params.height == ViewGroup.LayoutParams.MATCH_PARENT
@@ -912,7 +1006,9 @@ class MPVView(
    * the settled container size as well. Cheap: it bails out unless the rectangle really changes.
    */
   private val embedRelayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-    if (!isMediaCodecEmbedActive() || lastEmbedAspect == null) return@OnGlobalLayoutListener
+    // Keep recomputing only until a rectangle has actually been committed. The decoded size and
+    // the container size are both allowed to arrive late on a reused mpv core.
+    if (!isEmbedSessionActive() || embedBoundsApplied) return@OnGlobalLayoutListener
     // User-picked Crop (panscan) / Stretch / custom aspect must not be fought.
     val override = PlaybackSession.getPropertyDouble("video-aspect-override") ?: -1.0
     val panscan = PlaybackSession.getPropertyDouble("panscan") ?: 0.0
@@ -923,7 +1019,7 @@ class MPVView(
   private var embedRelayoutListenerRegistered = false
 
   private fun registerEmbedRelayoutListener() {
-    if (embedRelayoutListenerRegistered || !isMediaCodecEmbedActive()) return
+    if (embedRelayoutListenerRegistered || !isEmbedSessionActive()) return
     if (!viewTreeObserver.isAlive) return
     embedRelayoutListenerRegistered = true
     viewTreeObserver.addOnGlobalLayoutListener(embedRelayoutListener)
@@ -941,6 +1037,7 @@ class MPVView(
     const val DEFAULT_OSD_SAFE_MARGIN = 16
     const val SURFACE_RETRY_MS = 250L
     const val SURFACE_READY_TIMEOUT_MS = 5_000L
+    const val EMBED_BOUNDS_TOLERANCE_PX = 8
   }
 
   @Suppress("ReturnCount", "DEPRECATION")
@@ -1025,6 +1122,13 @@ class MPVView(
       osdSurfaceAttached = false
       syncOsdSurfaceAttachment(reopenOutput = false)
     }
+
+    // A second playback reuses the mpv core, so video-params/aspect does not fire again and the
+    // letterbox would stay MATCH_PARENT (stretched picture). Commit it from the real decoded size
+    // BEFORE binding the native window: changing layoutParams after binding detaches the
+    // ANativeWindow that MediaCodec writes into. A direct mpv read is safe here: this is the main
+    // thread, outside any observer callback.
+    if (isEmbedSessionActive()) applyEmbedAspectRatioBounds(allowDirectRead = true)
 
     PlaybackSession.bindSurface(
       surface, width, height, this,

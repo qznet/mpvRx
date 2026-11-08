@@ -4642,6 +4642,9 @@ class PlayerActivity :
       -> {
         // Safety check: don't access MPV during cleanup
         if (!mpvInitialized || player.isExiting || isFinishing) return
+        // The decoded size is the only trustworthy DAR source under vo=mediacodec_embed and can
+        // arrive after the first Surface bind. Post to the UI thread before touching layoutParams.
+        player.post { player.applyEmbedAspectRatio(null) }
         scheduleVideoParamRefresh(reloadShaders = true)
       }
     }
