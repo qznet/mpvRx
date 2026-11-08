@@ -605,17 +605,15 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
               if (windowId == 0L || windowId == -1L) return@withLock false
 
               val activated = runCatching {
-                MPVLib.setPropertyString("vo", desiredVideoOutput)
+                // 10/26 verified order: force-window first, then the output.
                 MPVLib.setPropertyString("force-window", "yes")
-                // Read back the actual output, not just the requested option. Video selection
-                // must be the final step, after JNI's window and the new output are usable.
-                // fongmi's mediacodec_embed does not reliably report current-vo while the OSD
-                // ANativeWindow is being associated; a strict readback declares a perfectly
-                // healthy zero-copy output dead after ~4.8s and detaches it (black screen).
-                // For the embedded path only the wid check above gates readiness.
-                if (!embedded &&
-                  MPVLib.getPropertyString("current-vo") != desiredVideoOutput
-                ) return@withLock false
+                MPVLib.setPropertyString("vo", desiredVideoOutput)
+                // No current-vo readback. Upstream PR #923 added it for GPU backends, but on a
+                // slow TV GPU (Mali-G52 / Android 9) gpu-next reports a stale or empty value for
+                // longer than the 300x16ms retry window; declaring the renderer failed detaches
+                // the surface and restarts loadfile, which loops the first 1-2 seconds forever.
+                // 10/26 used the wid check above as the only readiness gate and both backends
+                // worked on this TV. Keep that behaviour for every renderer.
                 rendererOutputReady = true
                 restoreSuspendedVideoTrackLocked()
                 applyDeferredVideoSelectionLocked()
@@ -708,16 +706,20 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
     }
 
   /**
-   * Stops video before changing vo/wid. These operations must stay under the same native lock;
-   * restoring vid before the replacement output is ready would reintroduce a whole-file seek.
+   * Replaces the Android output without tearing down the selected video track. 10/26 verified
+   * that this must stay under the same native lock, and that `vid` must stay untouched: writing
+   * `vid=no` here (added by upstream PR #923) kills the live MediaCodec decoder, drops the
+   * decoded packet cache and, with vo=mediacodec_embed, breaks the direct ANativeWindow chain.
+   * That is the fast-forward freeze: stuck frame on a phone, black frame on this TV, and
+   * hwdec-current going blank so the decoder UI falls back to "Auto".
    */
   private fun detachRendererSurfaceLocked() {
     ++surfaceAttachmentToken
     suspendVideoTrackLocked()
     rendererOutputReady = false
-    MPVLib.setPropertyString("vo", "null")
-    MPVLib.setPropertyString("force-window", "no")
-    MPVLib.detachSurface()
+    runCatching { MPVLib.setPropertyString("vo", "null") }
+    runCatching { MPVLib.setPropertyString("force-window", "no") }
+    runCatching { MPVLib.detachSurface() }
     attachedSurfaceOwner = null
     attachedSurfaceWidth = 0
     attachedSurfaceHeight = 0
@@ -2519,10 +2521,18 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
     deferredVideoSelectionGeneration = null
   }
 
-  /** Synchronous property writes plus readback confirm deselection before any vo/wid update. */
+  /**
+   * 10/26 verified behaviour: during an Android Surface handoff only REMEMBER the selected video
+   * track, never deselect it. Upstream PR #923 added `vid=no` plus a synchronous readback here.
+   * With vo=mediacodec_embed that destroys the live MediaCodec -> ANativeWindow zero-copy chain:
+   * mpv discards cached packets, hwdec-current goes blank (the decoder UI then shows "Auto",
+   * and manually setting hwdec=mediacodec cannot help because the video track is deselected),
+   * and the picture freezes on seek. Paused seeks survive because no frame is being presented.
+   * The wid/vo readiness gate in bindSurface() is enough; vid stays selected throughout.
+   */
   private fun suspendVideoTrackLocked() {
     val current = _state.value
-    val selected = MPVLib.getPropertyString("vid")?.toIntOrNull()
+    val selected = runCatching { MPVLib.getPropertyString("vid")?.toIntOrNull() }.getOrNull()
     if (selected != null && selected > 0) {
       if (loadedGeneration == current.generation) {
         suspendedVideoTrack = SuspendedVideoTrack(selected, current.generation)
@@ -2530,12 +2540,8 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
         deferredVideoSelectionGeneration = current.generation
       }
     }
-    MPVLib.setPropertyString("vid", "no")
-    check(MPVLib.getPropertyString("vid") == "no") {
-      "Video must be disabled before changing the Android output"
-    }
-    Log.d(TAG, "Video suspended before Surface change: generation=${current.generation}, " +
-      "savedVid=${suspendedVideoTrack?.id}, vid=no")
+    Log.d(TAG, "Video track remembered before Surface change: generation=${current.generation}, " +
+      "savedVid=${suspendedVideoTrack?.id} (vid left untouched)")
   }
 
   private fun restoreSuspendedVideoTrackLocked() {
@@ -2548,6 +2554,16 @@ internal fun userScriptsNeedReload(currentKey: String): Boolean {
     if (!rendererOutputReady || !current.surfaceAttached || loadedGeneration != current.generation ||
       current.phase !in setOf(PlaybackPhase.READY, PlaybackPhase.BACKGROUND)
     ) return
+
+    // The track is normally still selected (we no longer write vid=no during a handoff). Clear
+    // the pending record without touching mpv, otherwise re-selecting it on every rebind would
+    // re-init the MediaCodec decoder and reintroduce the exact freeze we are avoiding.
+    val activeVid = runCatching { MPVLib.getPropertyString("vid")?.toIntOrNull() }.getOrNull()
+    if (activeVid == suspended.id) {
+      suspendedVideoTrack = null
+      deferredVideoSelectionGeneration = null
+      return
+    }
 
     runCatching {
       MPVLib.setPropertyInt("vid", suspended.id)
