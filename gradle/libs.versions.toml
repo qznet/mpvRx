@@ -49,7 +49,7 @@ mediainfo = "v1.0.0-fix"
 mpvlib = "1.1.4"
 # Locally assembled fongmi AAR with the FongMi mediacodec_embed seek fix.
 # Do NOT name this "mpvlib-*": a catalog key and a key prefix cannot coexist.
-fongmiKernelFix = "1.1.9-fongmifix"
+fongmiKernelFix = "1.1.9-fongmifix2"
 googleCast = "22.3.1"
 androidxBiometric = "1.4.0-alpha07"
 leakcanary = "2.14"
