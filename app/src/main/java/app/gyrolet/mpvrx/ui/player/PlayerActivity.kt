@@ -7186,7 +7186,18 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
     // the video and interferes with continuous speed scrubbing. Per user requirement, UP/DOWN in
     // fullscreen playback should only surface the speed value (the toast below), just like LEFT/RIGHT
     // only surfaces the seekbar. The OK key remains the only one that reveals the full controls.
-    viewModel.showToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+    showSpeedToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+  }
+
+  /**
+   * Speed OSD must be plain text. The upstream AppToast (which `viewModel.showToast` and the
+   * `Toast` alias in this file now resolve to) renders a rounded card with a large white
+   * background and an icon, so the speed value ends up inside a big white box on the TV.
+   * The 10/26 verified build used the platform Toast for exactly this reason. Keep every other
+   * toast in the app on AppToast; only this one uses android.widget.Toast.
+   */
+  private fun showSpeedToast(message: String) {
+    android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
   }
 
   @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod")
