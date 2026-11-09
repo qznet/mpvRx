@@ -38,6 +38,27 @@ dependencyResolutionManagement {
         includeGroup("app.gyrolet.mpvlib")
       }
     }
+    // FongMi seek-fix kernel: a locally assembled AAR (1.1.8 Java/JNI + a libmpv.so
+    // rebuilt from FongMi/mpv after a318357e0a) is published on qznet/mpv-android.
+    // Keeping it under a separate group lets standard / no-vulkan flavors continue to
+    // resolve the untouched upstream AAR from Riteshp2001/mpvlibAndroid.
+    exclusiveContent {
+      forRepository {
+        ivy {
+          name = "qznetFongmiKernel"
+          url = uri("https://github.com/qznet/mpv-android/releases/download")
+          patternLayout {
+            artifact("v[revision]/[artifact]-[revision].[ext]")
+          }
+          metadataSources {
+            artifact()
+          }
+        }
+      }
+      filter {
+        includeGroup("app.gyrolet.mpvlib.fongmifix")
+      }
+    }
     maven(url = "https://www.jitpack.io") {
       content {
         // Only use JitPack for specific dependencies to avoid unnecessary checks
