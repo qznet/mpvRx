@@ -24,7 +24,8 @@ class DecoderPreferences(
   val tryHWDecoding = preferenceStore.getBoolean("try_hw_dec", true)
 
   /** vo=mediacodec_embed: MediaCodec draws every video straight to the screen, without mpv's renderer. */
-  val mediaCodecEmbed = preferenceStore.getBoolean("mediacodec_embed", false)
+  // TV fork: default ON (zero-copy embed is the verified path on the TCL Android 9 / Mali-G52).
+  val mediaCodecEmbed = preferenceStore.getBoolean("mediacodec_embed", true)
   val gpuNext = preferenceStore.getBoolean("gpu_next")
   val useVulkan = preferenceStore.getBoolean("use_vulkan", false)
   val hdrScreenOutput = preferenceStore.getBoolean("hdr_screen_output", false)

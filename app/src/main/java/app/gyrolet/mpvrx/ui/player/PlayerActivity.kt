@@ -224,6 +224,9 @@ class PlayerActivity :
   private var orientationFromPlayback = false
   private val consumedTvRemoteKeys = mutableSetOf<Int>()
 
+  /** Playback-speed step applied per DPAD press during fullscreen TV playback. */
+  private val tvSpeedStep = 0.1
+
   /**
    * Observer for MPV events.
    */
@@ -7367,6 +7370,28 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
 
   // ==================== Key Event Handling ====================
 
+  /** Adjusts playback speed by [delta] (e.g. +0.1 / -0.1) and surfaces a brief confirmation. */
+  private fun adjustPlaybackSpeedByStep(delta: Double) {
+    val current = PlaybackSession.getPropertyDouble("speed") ?: 1.0
+    val next = (current + delta).coerceIn(0.1, 4.0)
+    PlaybackSession.setPropertyDouble("speed", next)
+    // Intentionally NOT calling viewModel.showControls() here: on Android TV showing the controls
+    // also pops the system bars + full control bar over the video, breaking continuous speed
+    // scrubbing. Per user requirement UP/DOWN in fullscreen playback only surface the speed value.
+    showSpeedToast(getString(R.string.player_speed_toast_format, "%.2f".format(next)))
+  }
+
+  /**
+   * Speed OSD must be plain text. The upstream AppToast (which `viewModel.showToast` and the
+   * `Toast` alias resolve to) renders a rounded card with a large white background, so the speed
+   * value ends up inside a big white box on the TV. The verified 10/26 build used the platform
+   * Toast for exactly this reason. Only this one uses android.widget.Toast; every other toast
+   * stays on AppToast.
+   */
+  private fun showSpeedToast(message: String) {
+    android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+  }
+
   /**
    * Handles hardware key down events for player control.
    * Supports D-pad navigation, media keys, and volume controls.
@@ -7392,6 +7417,27 @@ private suspend fun restorePlaybackPosition(state: PlaybackStateEntity?, loadGen
         it.isShiftPressed || it.isCtrlPressed || it.isAltPressed || it.isMetaPressed
       }
     val hasModifiers = modifierEvent != null
+
+    // TV fork: UP/DOWN step playback speed by ±0.1 ONLY while fullscreen playback is active and
+    // no sheet/panel is open. When paused or any overlay is shown, fall through to the remote
+    // policy below so DPAD keeps its normal list/control navigation. This MUST run before the
+    // policy block, which otherwise delegates UP/DOWN and makes the speed step unreachable.
+    if (isTelevision && !hasModifiers && isNoSheetOpen &&
+      viewModel.panelShown.value == Panels.None && viewModel.paused == false
+    ) {
+      when (keyCode) {
+        KeyEvent.KEYCODE_DPAD_UP -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(tvSpeedStep)
+          return true
+        }
+        KeyEvent.KEYCODE_DPAD_DOWN -> {
+          consumedTvRemoteKeys += keyCode
+          adjustPlaybackSpeedByStep(-tvSpeedStep)
+          return true
+        }
+      }
+    }
 
     if (isTelevision && !hasModifiers) {
       val overlayVisible = viewModel.sheetShown.value != Sheets.None || viewModel.panelShown.value != Panels.None
