@@ -106,6 +106,13 @@ android {
         abiFilters += activeAbis
       }
     }
+
+    // Also restrict the packaged jniLibs. The CMake abiFilters above only limit the
+    // natively compiled libraries; the prebuilt mpvlib AAR still ships every ABI and
+    // would otherwise bloat a single-ABI build with arm64/x86 payloads.
+    ndk {
+      abiFilters += activeAbis
+    }
   }
 
   externalNativeBuild {
@@ -231,7 +238,11 @@ android {
       isEnable = !isBundleBuild
       reset()
       include(*activeAbis.toTypedArray())
-      isUniversalApk = activeAbis.size > 1
+      // TV fork: always emit one universal-named APK per flavor. With a single requested
+      // ABI (e.g. -PtargetAbi=armeabi-v7a) AGP otherwise produces no non-density APK and
+      // fongmi is in universalOnlyDistributions (its ABI splits get disabled), so the
+      // build would emit nothing. Packaged native libs still follow activeAbis.
+      isUniversalApk = true
     }
   }
 
