@@ -307,6 +307,6 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "$asset" \
               --repo "$GITHUB_REPOSITORY" \
               --title "mpvRx ${GITHUB_REF_NAME} (MediaCodec embed TV)" \
-              --generate-notes \
+              --notes-file .github/release-notes-tv.md \
               --verify-tag
           fi
